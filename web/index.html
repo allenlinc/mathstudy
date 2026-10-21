@@ -72,9 +72,6 @@
   .offline .yes { color: #15803d; }
   .offline .net { color: #b45309; }
 
-  .dev a.card { background: #fbfaf6; }
-  .dev .card h3 { font-size: 15px; }
-
   footer { margin-top: 44px; color: var(--muted); font-size: 13px; text-align: center; }
   footer code { background: rgba(0,0,0,.05); border-radius: 5px; padding: 1px 6px; font-size: 12px; }
 
@@ -88,7 +85,7 @@
     <div class="hero-text">
       <span class="kicker">MATHSTUDY · WEB</span>
       <h1>长方体<span class="accent">展开与收缩</span> · 交互实验室</h1>
-      <p class="sub">六个面、十二条棱、11 种展开图——同一道小学数学题，用四种可视化框架做出的交互动画合集。按住彩色面向外拖，亲手把盒子摊开。</p>
+      <p class="sub">六个面、十二条棱、11 种展开图——同一道小学数学题，用五种可视化框架做出的交互动画合集。按住彩色面向外拖，亲手把盒子摊开。</p>
     </div>
     <div class="hero-art" aria-hidden="true">
       <svg width="320" height="150" viewBox="0 0 320 150" xmlns="http://www.w3.org/2000/svg">
@@ -122,14 +119,6 @@
 
   <div class="section-title">成品动画 <small>双击即用，按住面拖一拖</small></div>
   <nav class="grid">
-
-    <a class="card" href="CindyJS/cuboid-unfold-collapse.html">
-      <span class="chip" style="background:var(--cindy)">CindyJS</span>
-      <h3>长方体的展开与收缩</h3>
-      <p>滑块连续控制折叠角 θ（0°→90°），停在任意中间状态；拖拽旋转视角、滚轮缩放。</p>
-      <span class="offline">依赖：<b class="yes">本地内置 Cindy.js / Cindy3D.js</b></span>
-      <div class="go">打开 →</div>
-    </a>
 
     <a class="card" href="CindyJS/cuboid-net-lab.html">
       <span class="chip" style="background:var(--cindy)">CindyJS</span>
@@ -168,25 +157,6 @@
       <h3>长方体的展开 · 11 种展开图</h3>
       <p>右键拖拽旋转、按面拖动展开/折回、空格全展开/合拢；支持深链参数 <code>?pattern=1..11&amp;open=1&amp;a=2&amp;b=1.4&amp;c=1</code>。</p>
       <span class="offline">依赖：<b class="yes">自包含（内联 MathBox + three.js），离线可用</b></span>
-      <div class="go">打开 →</div>
-    </a>
-
-  </nav>
-
-  <div class="section-title">开发与构建文件 <small>日常浏览用上面入口即可</small></div>
-  <nav class="grid dev">
-
-    <a class="card" href="MathBox/cuboid-app.html">
-      <span class="chip" style="background:var(--mathbox)">MathBox · 源码</span>
-      <h3>cuboid-app.html</h3>
-      <p>开发版源码，引用本地 libs/（改代码用这个，改完可重新内联）。</p>
-      <div class="go">打开 →</div>
-    </a>
-
-    <a class="card" href="locusing/dist/cuboid-nets-11.html">
-      <span class="chip" style="background:var(--locusing)">locusing · 构建产物</span>
-      <h3>dist/cuboid-nets-11.html</h3>
-      <p>npm run build 的产物，与根目录 cuboid-nets-11.html 内容相同。</p>
       <div class="go">打开 →</div>
     </a>
 
