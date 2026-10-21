@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>长方体的展开图 · 11 种折法 — locusing 交互动画</title>
 <style>
   :root {
@@ -127,6 +127,18 @@
     .panel { display: none; }
     .dock .hint, .dock .sep { display: none; }
   }
+
+  /* ── 移动端：面板默认隐藏，悬浮按钮开合 ── */
+  #panelToggle{display:none;position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:26;align-items:center;gap:6px;padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:600 13px/1 "PingFang SC","Microsoft YaHei UI","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  #panelToggle:active{transform:scale(.96)}
+  @media (max-width:640px){
+    body:not(.mpanel-open) #dock{display:none!important}
+    #dock{max-height:52vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:max(9px, env(safe-area-inset-bottom,0px))}
+    #panelToggle{display:flex}
+    body.mpanel-open #dock{bottom:60px} /* 底栏居中且与右下悬浮按钮同高，展开时上抬避让，防止盖住「复位视角」 */
+  }
+  @media (min-width:641px){#panelToggle{display:none!important}}
+  @media (hover:none) and (pointer:coarse){ button,.tab,input[type=range],a{touch-action:manipulation;-webkit-tap-highlight-color:transparent} }
 </style>
 </head>
 <body>
@@ -164,7 +176,7 @@
     <svg id="scene" viewBox="0 0 860 620" xmlns="http://www.w3.org/2000/svg" aria-label="长方体 11 种展开图交互动画"></svg>
   </main>
 
-  <div class="dock">
+  <div class="dock" id="dock">
     <button id="btnAll" class="primary">全部展开</button>
     <button id="btnBox">变回盒子</button>
     <button id="btnView">复位视角</button>
@@ -562,6 +574,19 @@ gsap/MotionPathPlugin.js:
   *)
 */
 
+</script>
+
+<button id="panelToggle" aria-expanded="false" aria-controls="dock">☰ 控制面板</button>
+<script>
+/* 移动端面板开合：窄屏默认收起，点按切换 */
+(function(){
+  var btn=document.getElementById('panelToggle');
+  var panel=document.getElementById('dock');
+  if(!btn||!panel) return;
+  function sync(){var open=document.body.classList.contains('mpanel-open');btn.setAttribute('aria-expanded',open?'true':'false');btn.textContent=open?'✕ 收起面板':'☰ 控制面板';}
+  btn.addEventListener('click',function(e){e.stopPropagation();document.body.classList.toggle('mpanel-open');sync();});
+  sync();
+})();
 </script>
 </body>
 </html>

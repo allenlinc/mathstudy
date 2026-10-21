@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>长方体的展开 · 11 种展开图 — MathBox 交互实验</title>
 <link rel="stylesheet" href="libs/mathbox.css">
 <style>
@@ -67,6 +67,22 @@ button.b.primary:hover{filter:brightness(1.08);color:#fff}
   #titleBlock h1{font-size:18px}
   #panel{left:12px;right:12px;top:auto;bottom:12px;width:auto;max-height:52vh}
   #hint{display:none}
+}
+
+/* ── 移动端：面板默认隐藏，悬浮按钮开合（与其它 5 个姊妹页统一）── */
+#panelToggle{display:none;position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:40;
+  align-items:center;gap:6px;padding:10px 16px;border-radius:999px;border:1px solid var(--line);
+  background:#fff;color:var(--ink);font-family:var(--font-body);font-size:13px;font-weight:600;cursor:pointer;
+  box-shadow:0 4px 14px rgba(20,40,60,.22);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#panelToggle:active{transform:scale(.96)}
+@media (max-width:640px){
+  body:not(.mpanel-open) #panel{display:none!important}
+  #panel{padding-bottom:max(12px, env(safe-area-inset-bottom,0px))}
+  #panelToggle{display:flex}
+}
+@media (min-width:641px){#panelToggle{display:none!important}}
+@media (hover:none) and (pointer:coarse){
+  button,.b,input[type=range],a{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 }
 </style>
 </head>
@@ -591,6 +607,18 @@ try{
 }
 window.__quads = function(){ return QUADS; };
 window.__state = function(){ return state; };
+</script>
+<button id="panelToggle" aria-expanded="false" aria-controls="panel">☰ 控制面板</button>
+<script>
+/* 移动端面板开合：窄屏默认收起，点按切换 */
+(function(){
+  var btn=document.getElementById('panelToggle');
+  var panel=document.getElementById('panel');
+  if(!btn||!panel) return;
+  function sync(){var open=document.body.classList.contains('mpanel-open');btn.setAttribute('aria-expanded',open?'true':'false');btn.textContent=open?'✕ 收起面板':'☰ 控制面板';}
+  btn.addEventListener('click',function(e){e.stopPropagation();document.body.classList.toggle('mpanel-open');sync();});
+  sync();
+})();
 </script>
 </body>
 </html>

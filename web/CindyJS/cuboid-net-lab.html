@@ -1,8 +1,8 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>长方体展开图实验室 · 11 种连接方式 · CindyJS</title>
 <style>
   *{box-sizing:border-box}
@@ -41,6 +41,24 @@
   .chip{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
   .note{margin-top:10px;font-size:12px;color:#7484a3;max-width:1000px;line-height:1.85;text-align:center}
   #err{display:none;color:#ff9c9c;font:12px/1.6 Consolas,monospace;white-space:pre-wrap;max-width:940px;margin-top:10px}
+
+  /* ── 移动端：面板默认隐藏，悬浮按钮开合 ── */
+  #panelToggle{display:none;position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:26;align-items:center;gap:6px;padding:10px 16px;border-radius:999px;border:1px solid #243350;background:rgba(255,255,255,.045);color:#e8ecf4;font:600 13px/1 "Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  #panelToggle:active{transform:scale(.96)}
+  @media (max-width:640px){
+    body:not(.mpanel-open) #controls{display:none!important}
+    #controls{max-height:52vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:max(10px, env(safe-area-inset-bottom,0px))}
+    #panelToggle{display:flex}
+  }
+  @media (min-width:641px){#panelToggle{display:none!important}}
+  @media (hover:none) and (pointer:coarse){ button,.tab,input[type=range],a{touch-action:manipulation;-webkit-tap-highlight-color:transparent} }
+  /* 窄屏防溢出：固定宽度的 3D 舞台由 fitStage() 等比缩放，这里禁掉整页横向溢出 */
+  @media (max-width:640px){
+    html,body{overflow-x:hidden}
+    body{align-items:stretch}
+    .wrap{justify-content:flex-start}
+    .controls{max-width:100%}
+  }
 </style>
 <script src="Cindy.js"></script>
 <script src="Cindy3D.js"></script>
@@ -64,7 +82,7 @@
   </div>
 </div>
 
-<div class="controls">
+<div class="controls" id="controls">
   <button id="btnOpen">▷ 全部展开</button>
   <button id="btnClose">▷ 全部合拢</button>
   <button id="btnView" class="ghost">复位视角</button>
@@ -500,6 +518,37 @@ setTimeout(function(){
 }, 80);
 
 refreshRot();
+})();
+</script>
+<button id="panelToggle" aria-expanded="false" aria-controls="controls">☰ 控制面板</button>
+<script>
+/* 移动端面板开合：窄屏默认收起，点按切换 */
+(function(){
+  var btn=document.getElementById('panelToggle');
+  var panel=document.getElementById('controls');
+  if(!btn||!panel) return;
+  function sync(){var open=document.body.classList.contains('mpanel-open');btn.setAttribute('aria-expanded',open?'true':'false');btn.textContent=open?'✕ 收起面板':'☰ 控制面板';}
+  btn.addEventListener('click',function(e){e.stopPropagation();document.body.classList.toggle('mpanel-open');sync();});
+  sync();
+  /* 窄屏：把 880×560 的 3D 舞台等比缩放进视口。transform 不改变画布内部坐标系
+     （clientWidth 不变），投影/拾取常量依旧成立；配合 overflow-x:hidden 防止
+     布局宽度撑破视口触发浏览器整页缩小（那会把 fixed 按钮推出屏幕）。 */
+  var stage=document.querySelector('.stage');
+  function fitStage(){
+    if(!stage) return;
+    var w=stage.offsetWidth, h=stage.offsetHeight;
+    var s=Math.min(1, document.documentElement.clientWidth/w);
+    if(s<1){
+      stage.style.transformOrigin='top left';
+      stage.style.transform='scale('+s+')';
+      stage.style.marginBottom=(-h*(1-s))+'px';
+    } else { stage.style.transform=''; stage.style.marginBottom=''; }
+  }
+  /* 首次执行推迟到 load 之后：Cindy3D 初始化期间强制同步布局（读 offsetWidth）
+     会加剧其内部渲染上下文的初始化竞态（偶发 P.save of undefined）。 */
+  if (document.readyState === 'complete') fitStage();
+  else window.addEventListener('load', function(){ setTimeout(fitStage, 250); });
+  window.addEventListener('resize',fitStage);
 })();
 </script>
 </body>

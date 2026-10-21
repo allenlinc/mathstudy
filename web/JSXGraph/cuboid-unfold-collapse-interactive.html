@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <title>长方体的展开与收缩 · 11 种展开方式 · JSXGraph</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsxgraph@1.14.0/distrib/jsxgraph.css">
@@ -78,6 +78,25 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
   .stage{min-height:52vh;flex:none}
   aside{width:100%;border-left:none;border-top:1px solid var(--line);overflow:visible}
 }
+
+/* ── 移动端：面板默认隐藏，悬浮按钮开合（与其它 5 个姊妹页统一）── */
+#panelToggle{display:none;position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:30;
+  align-items:center;gap:6px;padding:10px 16px;border-radius:999px;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#panelToggle:active{transform:scale(.96)}
+@media (max-width:640px){
+  body:not(.mpanel-open) aside{display:none!important}
+  body.mpanel-open aside{position:fixed;left:0;right:0;bottom:0;z-index:30;width:auto;max-height:62vh;
+    border-left:none;border-top:1px solid var(--line);border-radius:10px 10px 0 0;
+    box-shadow:0 -8px 24px rgba(0,0,0,.18);
+    padding-bottom:max(16px, env(safe-area-inset-bottom,0px))}
+  #panelToggle{display:flex}
+}
+@media (min-width:641px){#panelToggle{display:none!important}}
+@media (hover:none) and (pointer:coarse){
+  button,.tab,input[type=range],a{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+}
 </style>
 </head>
 <body>
@@ -91,7 +110,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
     <div class="stage" id="stage">
       <div id="jxgbox" class="jxgbox"></div>
     </div>
-    <aside>
+    <aside id="panel">
       <section>
         <h2>展开方式（11 种连接）</h2>
         <div class="netgrid" id="netgrid"></div>
@@ -974,6 +993,19 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
     setTimeout(function () { fit(); refresh(); }, t);
   });
   requestAnimationFrame(frame);
+})();
+</script>
+
+<button id="panelToggle" aria-expanded="false" aria-controls="panel">☰ 控制面板</button>
+<script>
+/* 移动端面板开合：窄屏默认收起，点按切换 */
+(function(){
+  var btn=document.getElementById('panelToggle');
+  var panel=document.getElementById('panel');
+  if(!btn||!panel) return;
+  function sync(){var open=document.body.classList.contains('mpanel-open');btn.setAttribute('aria-expanded',open?'true':'false');btn.textContent=open?'✕ 收起面板':'☰ 控制面板';}
+  btn.addEventListener('click',function(e){e.stopPropagation();document.body.classList.toggle('mpanel-open');sync();});
+  sync();
 })();
 </script>
 </body>
