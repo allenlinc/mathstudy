@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>长方体展开与收缩 · 交互实验室 | mathstudy web 导航</title>
+<style>
+  :root {
+    --ink: #2b2a26;
+    --muted: #7a756a;
+    --paper: #f6f3ec;
+    --card: #ffffff;
+    --line: #e7e2d6;
+    --cindy: #3b82f6;
+    --jsxgraph: #10b981;
+    --locusing: #d97706;
+    --manim: #8b5cf6;
+    --mathbox: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+    background:
+      radial-gradient(1200px 500px at 15% -10%, #fdf9ef 0%, transparent 60%),
+      radial-gradient(900px 400px at 90% 0%, #eef4fa 0%, transparent 55%),
+      var(--paper);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 48px 24px 64px; }
+
+  .hero { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; margin-bottom: 40px; }
+  .hero-text { flex: 1 1 460px; }
+  .kicker {
+    display: inline-block; font-size: 13px; letter-spacing: .12em; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; margin-bottom: 14px;
+    background: rgba(255,255,255,.6);
+  }
+  h1 { font-size: clamp(26px, 4.5vw, 40px); font-weight: 800; letter-spacing: .01em; }
+  h1 .accent { color: #b45309; }
+  .sub { margin-top: 10px; color: var(--muted); font-size: 15.5px; max-width: 560px; }
+
+  .hero-art { flex: 0 0 auto; }
+
+  .section-title {
+    display: flex; align-items: baseline; gap: 10px;
+    margin: 34px 0 16px; font-size: 18px; font-weight: 700;
+  }
+  .section-title small { font-weight: 400; color: var(--muted); font-size: 13px; }
+  .section-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
+  a.card {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 18px 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+  }
+  a.card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(60,50,20,.10); border-color: #d8d0bd; }
+  .chip {
+    display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: #fff; border-radius: 6px; padding: 2px 9px;
+  }
+  .card h3 { margin: 10px 0 6px; font-size: 16.5px; }
+  .card p { color: var(--muted); font-size: 13.5px; }
+  .card .go { margin-top: 12px; font-size: 13.5px; font-weight: 600; color: #9a6b1f; }
+  a.card:hover .go { color: #b45309; }
+
+  .offline { display: inline-block; margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .offline b { font-weight: 600; }
+  .offline .yes { color: #15803d; }
+  .offline .net { color: #b45309; }
+
+  .dev a.card { background: #fbfaf6; }
+  .dev .card h3 { font-size: 15px; }
+
+  footer { margin-top: 44px; color: var(--muted); font-size: 13px; text-align: center; }
+  footer code { background: rgba(0,0,0,.05); border-radius: 5px; padding: 1px 6px; font-size: 12px; }
+
+  @media (max-width: 640px) { .hero-art { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="hero-text">
+      <span class="kicker">MATHSTUDY · WEB</span>
+      <h1>长方体<span class="accent">展开与收缩</span> · 交互实验室</h1>
+      <p class="sub">六个面、十二条棱、11 种展开图——同一道小学数学题，用四种可视化框架做出的交互动画合集。按住彩色面向外拖，亲手把盒子摊开。</p>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <svg width="320" height="150" viewBox="0 0 320 150" xmlns="http://www.w3.org/2000/svg">
+        <!-- 立方体 -->
+        <g stroke="#4a453b" stroke-width="1.4" stroke-linejoin="round">
+          <polygon points="60,18 102,40 60,62 18,40" fill="#f3c56b"/>
+          <polygon points="18,40 60,62 60,116 18,94"  fill="#e09f3e"/>
+          <polygon points="60,62 102,40 102,94 60,116" fill="#b97722"/>
+        </g>
+        <!-- 折痕箭头 -->
+        <path d="M106 96 C 128 92, 142 84, 150 74" stroke="#a8a091" stroke-width="1.6" fill="none" stroke-dasharray="4 4"/>
+        <path d="M150 74 l-7 1 4 6 z" fill="#a8a091"/>
+        <!-- 展开图（1-4-1 十字形） -->
+        <g stroke="#4a453b" stroke-width="1.3" stroke-linejoin="round">
+          <rect x="180" y="18"  width="30" height="30" fill="#f3c56b"/>
+          <rect x="210" y="18"  width="30" height="30" fill="#e09f3e"/>
+          <rect x="240" y="18"  width="30" height="30" fill="#f3c56b"/>
+          <rect x="270" y="18"  width="30" height="30" fill="#e09f3e"/>
+          <rect x="210" y="-12" width="30" height="30" fill="#c98a2e" transform="translate(0,30)"/>
+          <rect x="210" y="48"  width="30" height="30" fill="#b97722"/>
+        </g>
+        <g stroke="#7a756a" stroke-width="1" stroke-dasharray="3 3">
+          <line x1="210" y1="18"  x2="210" y2="78"/>
+          <line x1="240" y1="18"  x2="240" y2="78"/>
+          <line x1="270" y1="18"  x2="270" y2="48"/>
+          <line x1="180" y1="48"  x2="300" y2="48"/>
+        </g>
+      </svg>
+    </div>
+  </header>
+
+  <div class="section-title">成品动画 <small>双击即用，按住面拖一拖</small></div>
+  <nav class="grid">
+
+    <a class="card" href="CindyJS/cuboid-unfold-collapse.html">
+      <span class="chip" style="background:var(--cindy)">CindyJS</span>
+      <h3>长方体的展开与收缩</h3>
+      <p>滑块连续控制折叠角 θ（0°→90°），停在任意中间状态；拖拽旋转视角、滚轮缩放。</p>
+      <span class="offline">依赖：<b class="yes">本地内置 Cindy.js / Cindy3D.js</b></span>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="CindyJS/cuboid-net-lab.html">
+      <span class="chip" style="background:var(--cindy)">CindyJS</span>
+      <h3>长方体展开图实验室 · 11 种连接方式</h3>
+      <p>12 条棱保留 5 条不剪开的全部生成树穷举，逐一切换 11 种连接方式并验证摊平。</p>
+      <span class="offline">依赖：<b class="yes">本地内置 Cindy.js / Cindy3D.js</b></span>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="JSXGraph/cuboid-unfold-collapse-interactive.html">
+      <span class="chip" style="background:var(--jsxgraph)">JSXGraph</span>
+      <h3>长方体的展开与收缩 · 11 种展开方式</h3>
+      <p>按住彩色面拖拽展开/收拢，右键旋转相机；面板逐一切换 11 种展开方式。</p>
+      <span class="offline">依赖：<b class="net">需联网加载 CDN 库</b></span>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="locusing/cuboid-nets-11.html">
+      <span class="chip" style="background:var(--locusing)">locusing</span>
+      <h3>长方体的展开图 · 11 种折法</h3>
+      <p>长按彩面（约 0.3 秒）向外拖，面绕折棱真实翻开，拉过半自动摊平；11 种折法缩略图点选。</p>
+      <span class="offline">依赖：<b class="yes">单文件自包含，离线可用</b></span>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="manim-web/cuboid-unfold-collapse-interactive.html">
+      <span class="chip" style="background:var(--manim)">manim-web</span>
+      <h3>长方体 · 收缩与展开</h3>
+      <p>Manim 风格的 3D 场景：按住面沿棱拖拽 1:1 展开，松手磁吸摊平/合拢，右键环绕视角。</p>
+      <span class="offline">依赖：<b class="net">需联网加载 CDN 库</b></span>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="MathBox/cuboid-unfold-collapse-interactive.html">
+      <span class="chip" style="background:var(--mathbox)">MathBox</span>
+      <h3>长方体的展开 · 11 种展开图</h3>
+      <p>右键拖拽旋转、按面拖动展开/折回、空格全展开/合拢；支持深链参数 <code>?pattern=1..11&amp;open=1&amp;a=2&amp;b=1.4&amp;c=1</code>。</p>
+      <span class="offline">依赖：<b class="yes">自包含（内联 MathBox + three.js），离线可用</b></span>
+      <div class="go">打开 →</div>
+    </a>
+
+  </nav>
+
+  <div class="section-title">开发与构建文件 <small>日常浏览用上面入口即可</small></div>
+  <nav class="grid dev">
+
+    <a class="card" href="MathBox/cuboid-app.html">
+      <span class="chip" style="background:var(--mathbox)">MathBox · 源码</span>
+      <h3>cuboid-app.html</h3>
+      <p>开发版源码，引用本地 libs/（改代码用这个，改完可重新内联）。</p>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="locusing/dist/cuboid-nets-11.html">
+      <span class="chip" style="background:var(--locusing)">locusing · 构建产物</span>
+      <h3>dist/cuboid-nets-11.html</h3>
+      <p>npm run build 的产物，与根目录 cuboid-nets-11.html 内容相同。</p>
+      <div class="go">打开 →</div>
+    </a>
+
+  </nav>
+
+  <footer>
+    mathstudy · 小学数学可视化练习 · 相对路径链接，本地双击或任意静态服务器均可 ·
+    目录约定：<code>web/</code> 下仅使用英文文件名 · 新增页面后请同步更新本导航
+  </footer>
+
+</div>
+</body>
+</html>

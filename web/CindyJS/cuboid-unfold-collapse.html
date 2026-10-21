@@ -1,0 +1,349 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>长方体的展开与收缩 · CindyJS 交互动画</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;
+    background:radial-gradient(1100px 600px at 50% -10%,#1d2a4d 0%,#0d1526 55%,#090e1a 100%);
+    color:#e8ecf4;padding:26px 16px 46px}
+  h1{font-size:26px;margin:0 0 8px;letter-spacing:2px;font-weight:600}
+  .sub{color:#9fb0cc;font-size:13.5px;margin:0 0 18px;text-align:center;line-height:1.8}
+  .stage{background:#0a1120;border:1px solid #243350;border-radius:18px;padding:12px;
+    box-shadow:0 22px 60px rgba(0,0,0,.55)}
+  #Cindy3D{width:920px;height:540px;border-radius:12px;display:block;touch-action:none;cursor:grab;background:#0a1120}
+  #Cindy3D:active{cursor:grabbing}
+  .controls{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:center;
+    margin-top:16px;background:rgba(255,255,255,.045);border:1px solid #243350;border-radius:14px;
+    padding:12px 18px;max-width:980px}
+  button{background:linear-gradient(180deg,#3f8cff,#2563eb);border:none;color:#fff;font-size:14px;
+    padding:9px 18px;border-radius:10px;cursor:pointer;font-family:inherit;transition:.15s;letter-spacing:1px}
+  button:hover{filter:brightness(1.15)} button:active{transform:translateY(1px)}
+  button.ghost{background:rgba(255,255,255,.08);border:1px solid #3a4a70}
+  .ctl{display:flex;align-items:center;gap:8px;font-size:13.5px;color:#c7d2e5}
+  input[type=range]{width:210px;accent-color:#38bdf8;cursor:pointer}
+  select{background:#16203a;color:#e8ecf4;border:1px solid #3a4a70;border-radius:8px;padding:5px 8px;font-family:inherit}
+  .badge{font-variant-numeric:tabular-nums;background:#0d1830;border:1px solid #3a4a70;border-radius:8px;
+    padding:6px 10px;font-size:13px;color:#8fd3ff;min-width:186px;text-align:center;white-space:nowrap}
+  .panel{display:flex;gap:22px;margin-top:16px;background:rgba(255,255,255,.045);
+    border:1px solid #243350;border-radius:14px;padding:14px 20px;max-width:980px;align-items:center;flex-wrap:wrap;justify-content:center}
+  .pairs{font-size:13.5px;color:#c3cee4;line-height:2.05}
+  .chip{display:inline-block;width:13px;height:13px;border-radius:3px;margin-right:7px;vertical-align:-1.5px}
+  .note{margin-top:14px;font-size:12.5px;color:#7484a3;max-width:920px;line-height:1.9;text-align:center}
+  #err{display:none;color:#ff9c9c;font:12px/1.6 Consolas,monospace;white-space:pre-wrap;max-width:940px;margin-top:12px}
+</style>
+<script src="Cindy.js"></script>
+<script src="Cindy3D.js"></script>
+</head>
+<body>
+<h1>长方体的展开与收缩</h1>
+<p class="sub">长方体沿棱展开成平面展开图，再收缩合拢为立体 —— 拖拽画布旋转视角，滚轮缩放，滑块可停在任意折叠角</p>
+
+<div class="stage"><canvas id="Cindy3D" width="920" height="540"></canvas></div>
+<canvas id="c2d" width="10" height="10" style="display:none"></canvas>
+
+<div class="controls">
+  <button id="btnUnfold">▷ 展开</button>
+  <button id="btnFold">▷ 收缩</button>
+  <button id="btnPause" class="ghost">⏸ 暂停</button>
+  <button id="btnLoop" class="ghost">循环演示：开</button>
+  <button id="btnView" class="ghost">复位视角</button>
+  <label class="ctl">折叠角
+    <input type="range" id="slTheta" min="0" max="90" step="0.25" value="90">
+    <span class="badge" id="lbTheta">θ = 90.0° · 长方体</span>
+  </label>
+  <label class="ctl">速度
+    <select id="selSpd">
+      <option value="3.4">慢</option>
+      <option value="2.3" selected>中</option>
+      <option value="1.4">快</option>
+    </select>
+  </label>
+  <label class="ctl"><input type="checkbox" id="ckGrid" checked> 参考网格</label>
+</div>
+
+<div class="panel">
+  <svg width="208" height="300" viewBox="0 0 208 300" aria-label="展开图示意">
+    <g stroke="#0b1220" stroke-width="1.5">
+      <rect x="45"  y="58"  width="96" height="46" fill="#ed994d"/>  <!-- ②前 -->
+      <rect x="0"   y="106" width="43" height="62" fill="#9e82e8"/>  <!-- ④左 -->
+      <rect x="45"  y="106" width="96" height="62" fill="#218f87"/>  <!-- ①底 -->
+      <rect x="143" y="106" width="43" height="62" fill="#785cc9"/>  <!-- ⑤右 -->
+      <rect x="45"  y="170" width="96" height="46" fill="#cc702b"/>  <!-- ③后 -->
+      <rect x="45"  y="218" width="96" height="62" fill="#33bfad"/>  <!-- ⑥顶 -->
+    </g>
+    <g stroke="#0b1220" stroke-width="1.2" stroke-dasharray="4 3" opacity=".85">
+      <line x1="45" y1="106" x2="141" y2="106"/>
+      <line x1="45" y1="170" x2="141" y2="170"/>
+      <line x1="45"  y1="104" x2="45"  y2="170"/>
+      <line x1="141" y1="104" x2="141" y2="170"/>
+      <line x1="45" y1="216" x2="141" y2="216"/>
+    </g>
+    <g font-size="12" fill="#0b1220" text-anchor="middle" font-weight="600">
+      <text x="93" y="78">② 前</text>
+      <text x="21" y="140">④ 左</text>
+      <text x="93" y="140">① 底</text>
+      <text x="164" y="140">⑤ 右</text>
+      <text x="93" y="196">③ 后</text>
+      <text x="93" y="252">⑥ 顶</text>
+    </g>
+  </svg>
+  <div class="pairs">
+    <b style="color:#8fd3ff">展开图读法</b>（沿虚线折叠）<br>
+    <span class="chip" style="background:#218f87"></span>①底 — <span class="chip" style="background:#33bfad"></span>⑥顶：相对且全等<br>
+    <span class="chip" style="background:#ed994d"></span>②前 — <span class="chip" style="background:#cc702b"></span>③后：相对且全等<br>
+    <span class="chip" style="background:#9e82e8"></span>④左 — <span class="chip" style="background:#785cc9"></span>⑤右：相对且全等<br>
+    六个长方形 ⇒ 侧面积 = 2(ab+bc+ca)
+  </div>
+</div>
+
+<p class="note">观察要点：① 展开图由 6 个长方形组成，本例为“十字形”展开图，沿不同的棱剪开还会得到其他形状；② 折拢过程中每个面都绕一条棱旋转；③ 长、宽、高可在本文件 csinit 脚本的 la / lb / lc 处修改。基于 <b>CindyJS</b>（Cindy3D 插件）构建。</p>
+<div id="err"></div>
+
+<script id="csinit" type="text/x-cindyscript">
+use("Cindy3D");
+
+// ===== 长方体尺寸：la=长(x)  lb=深(z)  lc=高(y)，可自行修改 =====
+la = 3.2; lb = 2.0; lc = 1.5;
+
+// ===== 折叠状态：th=0 平面展开图，th=pi/2 长方体合拢 =====
+th = pi/2;
+from = th; targ = 0; playing = true; legnew = true;
+looping = true; dur = 2.3; t0 = 0;
+
+// ===== 视角（对整个模型做旋转）与缩放 =====
+yaw = -0.55; pit = 0.42;
+ca = cos(yaw); sa = sin(yaw);
+cb = cos(pit); sb = sin(pit);
+sc = 0.48;
+mc = (la/2, lc*0.27, lb*0.75);
+showgrid = true;
+
+// ===== 旋转辅助 =====
+rotX(p, y0, z0, f) := (p_1, y0+(p_2-y0)*cos(f)-(p_3-z0)*sin(f), z0+(p_2-y0)*sin(f)+(p_3-z0)*cos(f));
+rotZ(p, x0, y0, f) := (x0+(p_1-x0)*cos(f)+(p_2-y0)*sin(f), y0-(p_1-x0)*sin(f)+(p_2-y0)*cos(f), p_3);
+yawR(p) := (p_1*ca - p_3*sa, p_2, p_1*sa + p_3*ca);
+pitR(p) := (p_1, p_2*cb - p_3*sb, p_2*sb + p_3*cb);
+vw(p) := pitR(yawR(sc*(p-mc)));
+
+// ===== 画一个面：填充 + 略外扩的描边（避免深度冲突）=====
+drawFace(fc, col) := (
+  regional(ce);
+  ce = (fc_1+fc_2+fc_3+fc_4)/4;
+  fillpoly3d(apply(fc, vw(#)), color->col);
+  connect3d(apply([fc_1,fc_2,fc_3,fc_4,fc_1], vw(ce+(#-ce)*1.006)), color->(0.05,0.07,0.12), size->0.4);
+);
+</script>
+
+<script id="cstick" type="text/x-cindyscript">
+if(legnew, (t0 = seconds(); legnew = false));
+if(playing,
+  u = (seconds() - t0)/dur;
+  if(u >= 1,
+    if(looping,
+      from = targ;
+      targ = if(targ < 0.001, pi/2, 0);
+      t0 = seconds();
+      th = from;
+    ,
+      th = targ;
+      playing = false;
+    )
+  ,
+    th = from + (targ - from)*(u*u*(3 - 2*u));
+  );
+);
+</script>
+
+<script id="csdraw" type="text/x-cindyscript">
+begin3d();
+
+// 相机与灯光（需在 begin3d 之后的 3D 实例上设置）
+background3d((0.05,0.08,0.16));
+lookat3d((0,0,5), (0,0,0), (0,1,0));
+ambientlight3d((0.40,0.42,0.48));
+directionallight3d(0, direction->(0.45,-0.55,-0.70), diffuse->(0.78,0.75,0.70));
+directionallight3d(1, direction->(-0.55,0.10,-0.83), diffuse->(0.40,0.44,0.55));
+
+// 参考网格（展开图所在平面）
+if(showgrid,
+  forall(-3..7,
+    ( connect3d([vw((#*0.9,-0.06,-2.8)), vw((#*0.9,-0.06,6.4))], color->(0.21,0.25,0.35), size->0.3);
+      connect3d([vw((-2.8,-0.06,#*0.9)), vw((6.4,-0.06,#*0.9))], color->(0.21,0.25,0.35), size->0.3) )
+  )
+);
+
+// ===== 六个面的当前角点（绕棱折叠）=====
+fB = [(0,0,0), (la,0,0), (la,0,lb), (0,0,lb)];
+fS = apply([(0,0,-lc), (la,0,-lc), (la,0,0), (0,0,0)],        rotX(#, 0, 0, th));
+fN = apply([(0,0,lb), (la,0,lb), (la,0,lb+lc), (0,0,lb+lc)],  rotX(#, 0, lb, -th));
+fW = apply([(-lc,0,0), (-lc,0,lb), (0,0,lb), (0,0,0)],        rotZ(#, 0, 0, th));
+fE = apply([(la,0,0), (la+lc,0,0), (la+lc,0,lb), (la,0,lb)],  rotZ(#, la, 0, -th));
+fT = apply([(0,0,lb+lc), (la,0,lb+lc), (la,0,2*lb+lc), (0,0,2*lb+lc)],
+            rotX(rotX(#, 0, lb+lc, -th), 0, lb, -th));
+
+// 相对面同色成对：底/顶·前/后·左/右
+drawFace(fB, (0.13,0.58,0.53));
+drawFace(fS, (0.93,0.60,0.30));
+drawFace(fN, (0.80,0.44,0.17));
+drawFace(fW, (0.62,0.51,0.91));
+drawFace(fE, (0.47,0.36,0.79));
+drawFace(fT, (0.20,0.75,0.68));
+
+end3d();
+</script>
+
+<script>
+// ===== 错误显示（便于排查）=====
+(function(){
+  var d=document.getElementById('err');
+  window.addEventListener('error',function(e){d.style.display='block';d.textContent+='[error] '+e.message+' @'+(e.filename||'')+':'+e.lineno+'\n';});
+  var oe=console.error;console.error=function(){d.style.display='block';d.textContent+=[].join.call(arguments,' ')+'\n';oe.apply(console,arguments);};
+  var ol=console.log;console.log=function(){d.style.display='block';d.textContent+=[].join.call(arguments,' ')+'\n';ol.apply(console,arguments);};
+  var ow=console.warn;console.warn=function(){d.style.display='block';d.textContent+=[].join.call(arguments,' ')+'\n';ow.apply(console,arguments);};
+})();
+
+// ===== CindyJS 实例 =====
+var cdy = CindyJS({
+  ports: [{id: "c2d"}],
+  scripts: "cs*",
+  autoplay: true,
+  animcontrols: false,
+  animation: {autoplay: true, controls: false},
+  csconsole: "err"
+});
+
+function send(code){ try{ cdy.evokeCS(code); }catch(e){} }
+function $(id){ return document.getElementById(id); }
+
+// ===== JS 侧镜像动画状态（与 cstick 同一套公式，用于 UI 显示）=====
+var HP = Math.PI/2;
+var m = {th: HP, from: HP, targ: 0, playing: true, t0: nowSec(), looping: true, dur: 2.3};
+var pausedU = 0;
+function nowSec(){ return performance.now()/1000; }
+function ease(u){ return u<=0?0 : u>=1?1 : u*u*(3-2*u); }
+function curU(){
+  if(!m.playing) return pausedU;
+  return Math.max(0, Math.min(1, (nowSec()-m.t0)/m.dur));
+}
+function advance(){
+  if(!m.playing) return;
+  var u = (nowSec()-m.t0)/m.dur;
+  if(u >= 1){
+    if(m.looping){
+      m.from = m.targ; m.targ = (m.targ < 0.001 ? HP : 0);
+      m.t0 = nowSec(); m.th = m.from; return;
+    } else { m.th = m.targ; m.playing = false; syncPauseBtn(); return; }
+  }
+  m.th = m.from + (m.targ-m.from)*ease(u);
+}
+
+// ===== UI 更新 =====
+var scrubbing = false;
+function stateText(){
+  if(m.th <= 0.02) return '展开图 · 已放平';
+  if(m.th >= 1.5508) return '长方体 · 已合拢';
+  if(!m.playing) return '已暂停';
+  return (m.targ < m.th) ? '正在展开…' : '正在收缩…';
+}
+function updateBadge(){
+  var deg = (m.th*180/Math.PI).toFixed(1);
+  $('lbTheta').textContent = 'θ = ' + deg + '° · ' + stateText();
+}
+function syncPauseBtn(){ $('btnPause').textContent = m.playing ? '⏸ 暂停' : '▶ 播放'; }
+function tick(){
+  advance();
+  updateBadge();
+  if(m.playing && !scrubbing) $('slTheta').value = (m.th*180/Math.PI).toFixed(2);
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+// ===== 调试参数：?th=90 可直接停在指定折叠角 =====
+setTimeout(function(){
+  var qth = parseFloat(new URLSearchParams(location.search).get('th'));
+  if(!isNaN(qth)){
+    var v = qth*Math.PI/180;
+    m.playing = false; pausedU = 0; m.from = m.targ = v; m.th = v;
+    send('playing=false; from='+v.toFixed(5)+'; targ='+v.toFixed(5)+'; th='+v.toFixed(5)+';');
+    syncPauseBtn(); updateBadge();
+  }
+}, 80);
+
+// ===== 控件 =====
+function startLeg(target){
+  m.from = m.th; m.targ = target; m.t0 = nowSec();
+  m.playing = true; pausedU = 0; m.looping = false;
+  send('looping=false; from='+m.from.toFixed(5)+'; targ='+target.toFixed(5)+'; playing=true; legnew=true;');
+  syncPauseBtn(); syncLoopBtn();
+}
+function syncLoopBtn(){ $('btnLoop').textContent = '循环演示：' + (m.looping ? '开' : '关'); }
+
+$('btnUnfold').onclick = function(){ startLeg(0); };
+$('btnFold').onclick   = function(){ startLeg(HP); };
+$('btnPause').onclick  = function(){
+  if(m.playing){ pausedU = curU(); m.playing = false; send('playing=false;'); }
+  else{
+    var u = pausedU; m.t0 = nowSec() - u*m.dur; m.playing = true;
+    send('t0=seconds()-'+(u*m.dur).toFixed(5)+'; playing=true;');
+  }
+  syncPauseBtn();
+};
+$('btnLoop').onclick = function(){
+  m.looping = !m.looping; send('looping='+m.looping+';'); syncLoopBtn();
+};
+$('slTheta').addEventListener('pointerdown', function(){ scrubbing = true; });
+window.addEventListener('pointerup', function(){ scrubbing = false; });
+$('slTheta').addEventListener('input', function(e){
+  var v = parseFloat(e.target.value)*Math.PI/180;
+  m.playing = false; pausedU = 0; m.from = m.targ = v; m.th = v;
+  send('playing=false; from='+v.toFixed(5)+'; targ='+v.toFixed(5)+'; th='+v.toFixed(5)+';');
+  syncPauseBtn(); updateBadge();
+});
+$('selSpd').onchange = function(e){
+  var u = curU(); m.dur = parseFloat(e.target.value);
+  m.t0 = nowSec() - u*m.dur;
+  send('dur='+m.dur+'; t0=seconds()-'+(u*m.dur).toFixed(5)+';');
+};
+$('ckGrid').onchange = function(e){ send('showgrid='+(e.target.checked? 'true':'false')+';'); };
+
+// ===== 视角：拖拽旋转 + 滚轮缩放 =====
+var stage = $('Cindy3D');
+var yaw = -0.55, pit = 0.42, sc = 0.5;
+var YAW0 = yaw, PIT0 = pit, SC0 = sc;
+var dragging = false, lx = 0, ly = 0;
+function sendView(){
+  send('ca='+Math.cos(yaw).toFixed(5)+'; sa='+Math.sin(yaw).toFixed(5)+
+       '; cb='+Math.cos(pit).toFixed(5)+'; sb='+Math.sin(pit).toFixed(5)+';');
+}
+stage.addEventListener('pointerdown', function(e){
+  dragging = true; lx = e.clientX; ly = e.clientY;
+  try{ stage.setPointerCapture(e.pointerId); }catch(err){}
+});
+stage.addEventListener('pointermove', function(e){
+  if(!dragging) return;
+  yaw += (e.clientX-lx)*0.008;
+  pit += (e.clientY-ly)*0.008;
+  pit = Math.max(-1.35, Math.min(1.35, pit));
+  lx = e.clientX; ly = e.clientY;
+  sendView();
+});
+stage.addEventListener('pointerup', function(){ dragging = false; });
+stage.addEventListener('wheel', function(e){
+  e.preventDefault();
+  sc *= (e.deltaY > 0 ? 0.92 : 1.087);
+  sc = Math.max(0.25, Math.min(1.6, sc));
+  send('sc='+sc.toFixed(4)+';');
+}, {passive:false});
+$('btnView').onclick = function(){
+  yaw = YAW0; pit = PIT0; sc = SC0;
+  sendView(); send('sc='+sc.toFixed(4)+';');
+};
+</script>
+</body>
+</html>
+
+

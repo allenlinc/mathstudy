@@ -1,0 +1,508 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>长方体展开图实验室 · 11 种连接方式 · CindyJS</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;
+    background:radial-gradient(1100px 600px at 50% -10%,#1d2a4d 0%,#0d1526 55%,#090e1a 100%);
+    color:#e8ecf4;padding:20px 14px 40px}
+  h1{font-size:23px;margin:0 0 6px;letter-spacing:2px;font-weight:600}
+  .sub{color:#9fb0cc;font-size:13px;margin:0 0 14px;text-align:center;line-height:1.8}
+  .wrap{display:flex;gap:14px;align-items:stretch;flex-wrap:wrap;justify-content:center}
+  .stage{background:#0a1120;border:1px solid #243350;border-radius:16px;padding:10px;
+    box-shadow:0 22px 60px rgba(0,0,0,.55)}
+  #Cindy3D{width:880px;height:560px;border-radius:10px;display:block;touch-action:none;cursor:default;background:#0a1120}
+  .side{width:262px;background:rgba(255,255,255,.045);border:1px solid #243350;border-radius:16px;padding:12px 14px;
+    display:flex;flex-direction:column;gap:10px}
+  .side h3{margin:0;font-size:14px;color:#8fd3ff;letter-spacing:1px}
+  .thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .thumb{background:#0d1730;border:1.5px solid #2c3c63;border-radius:10px;padding:5px 3px 3px;cursor:pointer;
+    text-align:center;transition:.15s}
+  .thumb:hover{border-color:#4a6dd8;transform:translateY(-1px)}
+  .thumb.active{border-color:#38bdf8;background:#12234a;box-shadow:0 0 0 1px #38bdf8 inset}
+  .thumb svg{display:block;margin:0 auto}
+  .thumb .tn{font-size:10.5px;color:#aab8d4;margin-top:2px;white-space:nowrap}
+  .hint{font-size:12px;color:#9fb0cc;line-height:1.9;border-top:1px dashed #2c3c63;padding-top:8px}
+  .hint b{color:#cfe3ff}
+  .controls{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;justify-content:center;
+    margin-top:14px;background:rgba(255,255,255,.045);border:1px solid #243350;border-radius:14px;
+    padding:10px 16px;max-width:1180px}
+  button{background:linear-gradient(180deg,#3f8cff,#2563eb);border:none;color:#fff;font-size:13.5px;
+    padding:8px 16px;border-radius:10px;cursor:pointer;font-family:inherit;transition:.15s;letter-spacing:1px}
+  button:hover{filter:brightness(1.15)} button:active{transform:translateY(1px)}
+  button.ghost{background:rgba(255,255,255,.08);border:1px solid #3a4a70}
+  .badge{font-variant-numeric:tabular-nums;background:#0d1830;border:1px solid #3a4a70;border-radius:8px;
+    padding:6px 12px;font-size:13px;color:#8fd3ff;white-space:nowrap}
+  .legend{display:flex;gap:14px;margin-top:12px;font-size:12.5px;color:#aab8d4;flex-wrap:wrap;justify-content:center}
+  .chip{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .note{margin-top:10px;font-size:12px;color:#7484a3;max-width:1000px;line-height:1.85;text-align:center}
+  #err{display:none;color:#ff9c9c;font:12px/1.6 Consolas,monospace;white-space:pre-wrap;max-width:940px;margin-top:10px}
+</style>
+<script src="Cindy.js"></script>
+<script src="Cindy3D.js"></script>
+</head>
+<body>
+<h1>长方体展开图实验室 · 11 种连接方式</h1>
+<p class="sub">按住<b>左键拖动某一个面</b>＝沿棱把它拉开或合上（不是缩放）· <b>右键拖动</b>＝旋转视角 · 滚轮＝缩放<br>
+把六个面全部拉平，就得到这个连接方式的平面展开图</p>
+
+<div class="wrap">
+  <div class="stage"><canvas id="Cindy3D" width="880" height="560"></canvas></div>
+<canvas id="c2d" width="4" height="4" style="position:absolute;left:-9999px;top:0;width:4px;height:4px;pointer-events:none;opacity:0.01"></canvas>
+  <div class="side">
+    <h3>11 种连接方式（点击切换）</h3>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="hint">
+      <b>操作</b>：按住一个面，顺着要打开的方向拉，面就绕棱转开；反方向推回去就合上。<br>
+      <b>右键拖动</b>旋转整体视角，<b>滚轮</b>缩放，便于从上往下看展开图。<br>
+      全部拉平后，从正上方看就是教科书上的展开图。
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <button id="btnOpen">▷ 全部展开</button>
+  <button id="btnClose">▷ 全部合拢</button>
+  <button id="btnView" class="ghost">复位视角</button>
+  <label class="ctl" style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:#c7d2e5">
+    <input type="checkbox" id="ckGrid" checked style="accent-color:#38bdf8"> 参考网格</label>
+  <span class="badge" id="lbState">准备中…</span>
+</div>
+
+<div class="legend">
+  <span><span class="chip" style="background:#218f87"></span>底面</span>
+  <span><span class="chip" style="background:#33bfad"></span>顶面（相对面）</span>
+  <span><span class="chip" style="background:#ed994d"></span>前面</span>
+  <span><span class="chip" style="background:#cc702b"></span>后面（相对面）</span>
+  <span><span class="chip" style="background:#9e82e8"></span>左面</span>
+  <span><span class="chip" style="background:#785cc9"></span>右面（相对面）</span>
+</div>
+<p class="note">11 种连接方式由长方体 12 条棱中保留 5 条不剪开（生成树）穷举并经展开运动碰撞检测验证得到，与教科书一致。
+颜色成对标记相对且全等的面。长、宽、高可在本文件 QUAD 数据处修改（3.2 × 2 × 1.5）。基于 <b>CindyJS</b>（Cindy3D 插件）构建。</p>
+<div id="err"></div>
+
+<script id="csinit" type="text/x-cindyscript">
+use("Cindy3D");
+COL = [(0.13,0.58,0.53), (0.20,0.75,0.68), (0.93,0.60,0.30), (0.80,0.44,0.17), (0.62,0.51,0.91), (0.47,0.36,0.79)];
+FP = []; GP = []; HI = -1; showgrid = true;
+</script>
+
+<script id="csdraw" type="text/x-cindyscript">
+begin3d();
+background3d((0.05,0.08,0.16));
+lookat3d((0,0,5), (0,0,0), (0,1,0));
+ambientlight3d((0.40,0.42,0.48));
+directionallight3d(0, direction->(0.45,-0.55,-0.70), diffuse->(0.78,0.75,0.70));
+directionallight3d(1, direction->(-0.55,0.10,-0.83), diffuse->(0.40,0.44,0.55));
+if(showgrid,
+  forall(GP, s, connect3d(s, color->(0.21,0.25,0.35), size->0.3));
+);
+if(length(FP) == 12,
+  forall(1..12, k, fillpoly3d(FP_k, color->COL_(ceil(k/2))));
+  forall(1..6, k,
+    q = FP_(2*k-1);
+    if(k-1 == HI,
+      connect3d([q_1,q_2,q_3,q_4,q_1], color->(0.98,0.85,0.35), size->0.55);
+    ,
+      connect3d([q_1,q_2,q_3,q_4,q_1], color->(0.05,0.07,0.12), size->0.4);
+    );
+  );
+);
+end3d();
+</script>
+
+<script>
+(function(){
+const errBox = document.getElementById('err');
+window.addEventListener('error', e => { errBox.style.display='block'; errBox.textContent += '[error] ' + ((e.error && e.error.stack) ? e.error.stack : e.message + ' @' + (e.filename||'') + ':' + e.lineno) + '\n'; });
+const oce = console.error; console.error = function(){ errBox.style.display='block'; errBox.textContent += [].join.call(arguments,' ') + '\n'; oce.apply(console, arguments); };
+
+// ================= 11 种连接方式数据（程序枚举+碰撞验证生成） =================
+// F: [role, parentRole, p0, p1, axis]  铰链与转轴均在长方体坐标(长3.2 x 高1.5 y 深2 z)中
+const NETS = [
+{n:"一四一①",L:[["B",1.5,5,3.2,2],["T",1.5,1.5,3.2,2],["F",1.5,3.5,3.2,1.5],["BA",1.5,0,3.2,1.5],["L",0,5,1.5,2],["R",4.7,5,1.5,2]],F:[["T","F",[0,1.5,0],[3.2,1.5,0],[-1,0,0]],["F","B",[0,0,0],[3.2,0,0],[-1,0,0]],["BA","T",[3.2,1.5,2],[0,1.5,2],[-1,0,0]],["L","B",[0,0,0],[0,0,2],[0,0,1]],["R","B",[3.2,0,0],[3.2,0,2],[0,0,-1]]]},
+{n:"一四一②",L:[["B",2,1.5,3.2,2],["T",2,5,3.2,2],["F",2,0,3.2,1.5],["BA",2,3.5,3.2,1.5],["L",0,0,2,1.5],["R",5.2,1.5,1.5,2]],F:[["T","BA",[3.2,1.5,2],[0,1.5,2],[1,0,0]],["F","B",[0,0,0],[3.2,0,0],[-1,0,0]],["BA","B",[3.2,0,2],[0,0,2],[1,0,0]],["L","F",[0,0,0],[0,1.5,0],[0,-1,0]],["R","B",[3.2,0,0],[3.2,0,2],[0,0,-1]]]},
+{n:"一四一③",L:[["B",1.5,3.5,3.2,2],["T",1.5,0,3.2,2],["F",1.5,2,3.2,1.5],["BA",1.5,5.5,3.2,1.5],["L",0,0,1.5,2],["R",4.7,3.5,1.5,2]],F:[["T","F",[0,1.5,0],[3.2,1.5,0],[-1,0,0]],["F","B",[0,0,0],[3.2,0,0],[-1,0,0]],["BA","B",[3.2,0,2],[0,0,2],[1,0,0]],["L","T",[0,1.5,0],[0,1.5,2],[0,0,-1]],["R","B",[3.2,0,0],[3.2,0,2],[0,0,-1]]]},
+{n:"一四一④",L:[["B",2,0,3.2,2],["T",2,3.5,3.2,2],["F",2,5.5,3.2,1.5],["BA",2,2,3.2,1.5],["L",0,5.5,2,1.5],["R",5.2,0,1.5,2]],F:[["T","BA",[3.2,1.5,2],[0,1.5,2],[1,0,0]],["F","T",[0,1.5,0],[3.2,1.5,0],[1,0,0]],["BA","B",[3.2,0,2],[0,0,2],[1,0,0]],["L","F",[0,0,0],[0,1.5,0],[0,-1,0]],["R","B",[3.2,0,0],[3.2,0,2],[0,0,-1]]]},
+{n:"一四一⑤",L:[["B",1.5,3.5,3.2,2],["T",1.5,0,3.2,2],["F",1.5,2,3.2,1.5],["BA",1.5,5.5,3.2,1.5],["L",0,3.5,1.5,2],["R",4.7,3.5,1.5,2]],F:[["T","F",[0,1.5,0],[3.2,1.5,0],[-1,0,0]],["F","B",[0,0,0],[3.2,0,0],[-1,0,0]],["BA","B",[3.2,0,2],[0,0,2],[1,0,0]],["L","B",[0,0,0],[0,0,2],[0,0,1]],["R","B",[3.2,0,0],[3.2,0,2],[0,0,-1]]]},
+{n:"一四一⑥",L:[["B",2,3.5,3.2,2],["T",2,0,3.2,2],["F",2,2,3.2,1.5],["BA",2,5.5,3.2,1.5],["L",0,2,2,1.5],["R",5.2,3.5,1.5,2]],F:[["T","F",[0,1.5,0],[3.2,1.5,0],[-1,0,0]],["F","B",[0,0,0],[3.2,0,0],[-1,0,0]],["BA","B",[3.2,0,2],[0,0,2],[1,0,0]],["L","F",[0,0,0],[0,1.5,0],[0,-1,0]],["R","B",[3.2,0,0],[3.2,0,2],[0,0,-1]]]},
+{n:"二三一①",L:[["B",1.5,3.2,3.2,2],["T",1.5,6.7,3.2,2],["F",0,0,1.5,3.2],["BA",1.5,5.2,3.2,1.5],["L",0,3.2,1.5,2],["R",4.7,3.2,1.5,2]],F:[["T","BA",[3.2,1.5,2],[0,1.5,2],[1,0,0]],["F","L",[0,0,0],[0,1.5,0],[0,1,0]],["BA","B",[3.2,0,2],[0,0,2],[1,0,0]],["L","B",[0,0,0],[0,0,2],[0,0,1]],["R","B",[3.2,0,0],[3.2,0,2],[0,0,-1]]]},
+{n:"二三一②",L:[["B",3.5,3.2,3.2,2],["T",0,0,2,3.2],["F",2,0,1.5,3.2],["BA",3.5,5.2,3.2,1.5],["L",2,3.2,1.5,2],["R",6.7,3.2,1.5,2]],F:[["T","F",[0,1.5,0],[3.2,1.5,0],[-1,0,0]],["F","L",[0,0,0],[0,1.5,0],[0,1,0]],["BA","B",[3.2,0,2],[0,0,2],[1,0,0]],["L","B",[0,0,0],[0,0,2],[0,0,1]],["R","B",[3.2,0,0],[3.2,0,2],[0,0,-1]]]},
+{n:"二三一③",L:[["B",1.5,0,3.2,2],["T",1.5,3.5,3.2,2],["F",0,5.5,1.5,3.2],["BA",1.5,2,3.2,1.5],["L",0,3.5,1.5,2],["R",4.7,0,1.5,2]],F:[["T","BA",[3.2,1.5,2],[0,1.5,2],[1,0,0]],["F","L",[0,0,0],[0,1.5,0],[0,1,0]],["BA","B",[3.2,0,2],[0,0,2],[1,0,0]],["L","T",[0,1.5,0],[0,1.5,2],[0,0,-1]],["R","B",[3.2,0,0],[3.2,0,2],[0,0,-1]]]},
+{n:"二二二①",L:[["B",3.5,4.7,3.2,2],["T",1.5,0,2,3.2],["F",3.5,3.2,3.2,1.5],["BA",0,0,1.5,3.2],["L",1.5,3.2,2,1.5],["R",6.7,4.7,1.5,2]],F:[["T","L",[0,1.5,0],[0,1.5,2],[0,0,1]],["F","B",[0,0,0],[3.2,0,0],[-1,0,0]],["BA","T",[3.2,1.5,2],[0,1.5,2],[-1,0,0]],["L","F",[0,0,0],[0,1.5,0],[0,-1,0]],["R","B",[3.2,0,0],[3.2,0,2],[0,0,-1]]]},
+{n:"三三①",L:[["B",5.2,1.5,3.2,2],["T",9.9,1.5,3.2,2],["F",5.2,0,3.2,1.5],["BA",0,0,3.2,1.5],["L",3.2,0,2,1.5],["R",8.4,1.5,1.5,2]],F:[["T","R",[3.2,1.5,0],[3.2,1.5,2],[0,0,-1]],["F","B",[0,0,0],[3.2,0,0],[-1,0,0]],["BA","L",[0,0,2],[0,1.5,2],[0,-1,0]],["L","F",[0,0,0],[0,1.5,0],[0,-1,0]],["R","B",[3.2,0,0],[3.2,0,2],[0,0,-1]]]}
+];
+const ROLES = ['B','T','F','BA','L','R'];
+const ROLEI = {B:0,T:1,F:2,BA:3,L:4,R:5};
+const QUAD = {
+  B:[[0,0,0],[3.2,0,0],[3.2,0,2],[0,0,2]],
+  T:[[0,1.5,0],[3.2,1.5,0],[3.2,1.5,2],[0,1.5,2]],
+  F:[[0,0,0],[3.2,0,0],[3.2,1.5,0],[0,1.5,0]],
+  BA:[[0,0,2],[3.2,0,2],[3.2,1.5,2],[0,1.5,2]],
+  L:[[0,0,0],[0,0,2],[0,1.5,2],[0,1.5,0]],
+  R:[[3.2,0,0],[3.2,0,2],[3.2,1.5,2],[3.2,1.5,0]]
+};
+// 面处理顺序(父先于子) 与 拾取/拖动辅助表
+for (const net of NETS) {
+  const fmap = {}; for (const f of net.F) fmap[f[0]] = f;
+  net.map = fmap;
+  const depth = {B:0};
+  let pending = net.F.map(f=>f[0]);
+  while (pending.length) {
+    const rest = [];
+    for (const r of pending) {
+      const p = fmap[r][1];
+      if (depth[p] !== undefined) depth[r] = depth[p]+1; else rest.push(r);
+    }
+    if (rest.length === pending.length) break;
+    pending = rest;
+  }
+  net.order = [...net.F].map(f=>({role:f[0], parent:f[1], p0:f[2], p1:f[3], axis:f[4]}))
+    .sort((a,b)=>depth[a.role]-depth[b.role]);
+}
+
+// ================= 矩阵工具 =================
+const IDENT = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+function mul(A,B){ const C=new Array(16);
+  for(let i=0;i<4;i++)for(let j=0;j<4;j++){ let s=0; for(let k=0;k<4;k++) s+=A[i*4+k]*B[k*4+j]; C[i*4+j]=s; } return C; }
+function applyM(M,p){ const x=p[0],y=p[1],z=p[2];
+  return [M[0]*x+M[1]*y+M[2]*z+M[3], M[4]*x+M[5]*y+M[6]*z+M[7], M[8]*x+M[9]*y+M[10]*z+M[11]]; }
+function Tr(x,y,z){ return [1,0,0,x, 0,1,0,y, 0,0,1,z, 0,0,0,1]; }
+function Rax(u,a){ const [x,y,z]=u, c=Math.cos(a), s=Math.sin(a), t=1-c;
+  return [t*x*x+c, t*x*y-s*z, t*x*z+s*y, 0,
+          t*x*y+s*z, t*y*y+c, t*y*z-s*x, 0,
+          t*x*z-s*y, t*y*z+s*x, t*z*z+c, 0, 0,0,0,1]; }
+const hingeD = (p0,u,a) => mul(mul(Tr(p0[0],p0[1],p0[2]), Rax(u,a)), Tr(-p0[0],-p0[1],-p0[2]));
+const sub3=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const cross3=(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const norm3=a=>{ const l=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; };
+
+// ================= 状态 =================
+const DEG = Math.PI/180;
+let netIdx = 0;
+let angles = {T:0, F:0, BA:0, L:0, R:0};      // 0=合拢 90=摊平
+let tween = null;                              // {from,to,t0,dur}
+let yaw=-0.55, pit=0.42, userZoom=1;
+let C = [1.6, 0.75, 1.0];                      // 视线中心(模型坐标, 平滑跟随)
+let scl = 0.42;
+let mode = null;                               // 'orbit' | 'face'
+let drag = null;
+let HI = -1;
+let geomDirty = true, camDirty = true;
+let quadsView = [];                            // 当前六面(视图空间)
+let lastM = {};                                // 当前各面模型变换(拖拽时取铰链)
+let lastFPstr = '', lastGPstr = '';
+
+const canvas = document.getElementById('Cindy3D');
+const W = 900, H = 560;
+const FOVH = Math.PI/8, PA = 1/Math.tan(FOVH);   // Cindy3D 默认相机: eye(0,0,5) fov45°
+
+// CindyJS 实例
+var cdy = CindyJS({
+  ports: [{id:"c2d"}],
+  scripts: "cs*",
+  autoplay: true,
+  animcontrols: false,
+  animation: {autoplay:true, controls:false},
+  csconsole: "err"
+});
+function send(code){ try{ cdy.evokeCS(code); }catch(e){} }
+
+// ================= 几何计算 =================
+let quadsModel = {};
+function computeGeom(){
+  const net = NETS[netIdx];
+  const M = {B: IDENT};
+  quadsModel = {B: QUAD.B.map(p=>p.slice())};
+  for (const f of net.order) {
+    const a = (angles[f.role]||0) * DEG;
+    M[f.role] = mul(M[f.parent], hingeD(f.p0, f.axis, a));
+    quadsModel[f.role] = QUAD[f.role].map(p => applyM(M[f.role], p));
+  }
+  lastM = M;
+  // 视图变换
+  const cy=Math.cos(yaw), sy=Math.sin(yaw), cp=Math.cos(pit), sp=Math.sin(pit);
+  const vw = p => {
+    let x=(p[0]-C[0])*scl, y=(p[1]-C[1])*scl, z=(p[2]-C[2])*scl;
+    let x1 = x*cy - z*sy, z1 = x*sy + z*cy;
+    let y2 = y*cp - z1*sp, z2 = y*sp + z1*cp;
+    return [x1, y2, z2];
+  };
+  const vd = p => { // 仅旋转(用于方向)
+    let x1 = p[0]*cy - p[2]*sy, z1 = p[0]*sy + p[2]*cy;
+    let y2 = p[1]*cp - z1*sp, z2 = p[1]*sp + z1*cp;
+    return [x1, y2, z2];
+  };
+  quadsView = ROLES.map(r => quadsModel[r].map(vw));
+  return {vw, vd};
+}
+function bboxModel(){
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;
+  for (const r of ROLES) for (const p of quadsModel[r]) {
+    if(p[0]<x0)x0=p[0]; if(p[0]>x1)x1=p[0]; if(p[1]<y0)y0=p[1]; if(p[1]>y1)y1=p[1]; if(p[2]<z0)z0=p[2]; if(p[2]>z1)z1=p[2];
+  }
+  return {x0,x1,y0,y1,z0,z1};
+}
+
+// ================= 推送渲染 =================
+const fmt = v => (+v).toFixed(4);
+function pushFP(){
+  let s = 'FP=[';
+  for (let k=0;k<6;k++) {
+    const q = quadsView[k];
+    s += '[[' + q.map(p=>fmt(p[0])+','+fmt(p[1])+','+fmt(p[2])).join('],[') + ']]';
+    s += ',[[' + q.slice().reverse().map(p=>fmt(p[0])+','+fmt(p[1])+','+fmt(p[2])).join('],[') + ']]';
+    if (k<5) s += ',';
+  }
+  s += '];';
+  if (s !== lastFPstr) { send(s); lastFPstr = s; }
+}
+function pushGP(){
+  const g = [];
+  const gx0 = Math.floor(C[0])-7, gx1 = Math.floor(C[0])+8;
+  const gz0 = Math.floor(C[2])-7, gz1 = Math.floor(C[2])+8;
+  const cy=Math.cos(yaw), sy=Math.sin(yaw), cp=Math.cos(pit), sp=Math.sin(pit);
+  const vw = p => {
+    let x=(p[0]-C[0])*scl, y=(p[1]-C[1])*scl, z=(p[2]-C[2])*scl;
+    let x1 = x*cy - z*sy, z1 = x*sy + z*cy;
+    return [x1, y*cp - z1*sp, y*sp + z1*cp];
+  };
+  for (let x=gx0; x<=gx1; x++) g.push([vw([x,-0.06,gz0]), vw([x,-0.06,gz1])]);
+  for (let z=gz0; z<=gz1; z++) g.push([vw([gx0,-0.06,z]), vw([gx1,-0.06,z])]);
+  let s = 'GP=[' + g.map(seg=>'[['+seg.map(p=>fmt(p[0])+','+fmt(p[1])+','+fmt(p[2])).join('],[')+']]').join(',') + '];';
+  if (s !== lastGPstr) { send(s); lastGPstr = s; }
+}
+
+// ================= 主循环 =================
+let lastT = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, (now-lastT)/1000); lastT = now;
+  if (tween) {
+    const u = Math.min(1, (now - tween.t0)/tween.dur);
+    const e = u*u*(3-2*u);
+    for (const r of ['T','F','BA','L','R'])
+      angles[r] = tween.from[r] + (tween.to[r]-tween.from[r])*e;
+    if (u>=1) tween = null;
+    geomDirty = true;
+  }
+  if (geomDirty) {
+    computeGeom();
+    if (!(mode==='face' && drag)) {
+      // 视线中心与取景平滑跟随（拖拽面时冻结）
+      const bb = bboxModel();
+      const tgt = [(bb.x0+bb.x1)/2, (bb.y0+bb.y1)/2, (bb.z0+bb.z1)/2];
+      for (let i=0;i<3;i++) C[i] += (tgt[i]-C[i])*Math.min(1, dt*6);
+      const cy=Math.cos(yaw), sy=Math.sin(yaw), cp=Math.cos(pit), sp=Math.sin(pit);
+      const corners = [];
+      for (const x of [bb.x0,bb.x1]) for (const y of [bb.y0,bb.y1]) for (const z of [bb.z0,bb.z1]) {
+        const dx=x-C[0], dy=y-C[1], dz=z-C[2];
+        const x1 = dx*cy - dz*sy, z1 = dx*sy + dz*cy;
+        corners.push([x1, dy*cp - z1*sp]);
+      }
+      const rx = Math.max(...corners.map(c=>Math.abs(c[0])))*2 + 0.6;
+      const ry = Math.max(...corners.map(c=>Math.abs(c[1])))*2 + 0.6;
+      const visH = 2*5*Math.tan(FOVH), visW = visH*W/H;
+      const target = 0.55*Math.min(visW/rx, visH/ry)*userZoom;
+      scl += (target-scl)*Math.min(1, dt*5);
+      camDirty = true;
+    }
+    geomDirty = false;
+    camDirty = true;
+    updateStatus();
+  }
+  if (camDirty) {
+    computeGeom();
+    pushFP();
+    pushGP();
+    camDirty = false;
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ================= 状态栏 =================
+const lbState = document.getElementById('lbState');
+let lastStatus = '';
+function updateStatus(){
+  const vals = ['T','F','BA','L','R'].map(r=>angles[r]);
+  const open = vals.every(v=>v>89.9), closed = vals.every(v=>v<0.1);
+  const st = NETS[netIdx].n + ' · ' + (open ? '✓ 已摊平成展开图' : closed ? '长方体 · 已合拢' : '手动折叠中 ' + Math.round(vals.reduce((a,b)=>a+b,0)/5) + '%');
+  if (st !== lastStatus) { lbState.textContent = st; lastStatus = st; }
+}
+
+// ================= 投影与拾取 =================
+function proj(v){
+  const w = 5 - v[2];
+  const nx = PA*(H/W)*v[0]/w, ny = PA*v[1]/w;
+  return [(nx+1)/2*W, (1-(ny+1)/2)*H];
+}
+function rayDir(mx, my){
+  const nx = 2*mx/W - 1, ny = 1 - 2*my/H;
+  return norm3([nx*(W/H)/PA, ny/PA, -1]);
+}
+function rayTri(o, d, p0, p1, p2){
+  const e1=sub3(p1,p0), e2=sub3(p2,p0), h=cross3(d,e2);
+  const a=e1[0]*h[0]+e1[1]*h[1]+e1[2]*h[2];
+  if (Math.abs(a) < 1e-12) return -1;
+  const f=1/a, s=sub3(o,p0);
+  const u=f*(s[0]*h[0]+s[1]*h[1]+s[2]*h[2]);
+  if (u<-1e-9||u>1+1e-9) return -1;
+  const q=cross3(s,e1);
+  const v=f*(d[0]*q[0]+d[1]*q[1]+d[2]*q[2]);
+  if (v<-1e-9||u+v>1+1e-9) return -1;
+  const t=f*(e2[0]*q[0]+e2[1]*q[1]+e2[2]*q[2]);
+  return t>1e-9 ? t : -1;
+}
+function pickFace(mx, my){
+  const o=[0,0,5], d=rayDir(mx,my);
+  let best=-1, bt=1e9;
+  for (let k=0;k<6;k++){
+    const q=quadsView[k];
+    const t1=rayTri(o,d,q[0],q[1],q[2]), t2=rayTri(o,d,q[0],q[2],q[3]);
+    const t=(t1>=0&&t2>=0)?Math.min(t1,t2):(t1>=0?t1:t2);
+    if (t>=0 && t<bt){ bt=t; best=k; }
+  }
+  return best;
+}
+
+// ================= 交互 =================
+let mx=0,my=0,lx=0,ly=0;
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+canvas.addEventListener('pointerdown', e=>{
+  canvas.setPointerCapture(e.pointerId);
+  mx=e.offsetX; my=e.offsetY; lx=mx; ly=my;
+  if (e.button===2 || e.button===0) {
+    if (e.button===0) {
+      const hit = pickFace(mx,my);
+      if (hit>=0){ startFaceDrag(hit, mx, my); return; }
+    }
+    mode='orbit';
+    canvas.style.cursor='move';
+  }
+});
+canvas.addEventListener('pointermove', e=>{
+  mx=e.offsetX; my=e.offsetY;
+  if (mode==='orbit'){
+    yaw += (mx-lx)*0.008; pit += (my-ly)*0.008;
+    pit = Math.max(-1.35, Math.min(1.35, pit));
+    lx=mx; ly=my; camDirty=true; geomDirty=true;
+  } else if (mode==='face' && drag){
+    moveFaceDrag(mx,my);
+  } else {
+    const hit = pickFace(mx,my);
+    canvas.style.cursor = hit>=0 ? 'grab' : 'default';
+  }
+});
+canvas.addEventListener('pointerup', e=>{
+  if (mode==='face' && drag){ HI=-1; send('HI=-1;'); }
+  mode=null; drag=null; canvas.style.cursor='default';
+});
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  userZoom *= (e.deltaY>0 ? 0.92 : 1.087);
+  userZoom = Math.max(0.35, Math.min(3, userZoom));
+  geomDirty = true;
+}, {passive:false});
+
+let quadCenModel = [];
+function cenOf(role){ const q=QUAD[role]; return [0,1,2].map(k=>(q[0][k]+q[1][k]+q[2][k]+q[3][k])/4); }
+function startFaceDrag(fi, mx, my){
+  refreshRot();
+  computeGeom();
+  const net = NETS[netIdx];
+  const f = net.map[ROLES[fi]];
+  const Mp = lastM[f[1]];
+  const h0 = applyM(Mp, f[2]), h1 = applyM(Mp, f[3]);   // 模型空间铰链(拖动中不变)
+  const s0 = proj(viewOf(h0)), s1 = proj(viewOf(h1));
+  let d2 = [s1[0]-s0[0], s1[1]-s0[1]];
+  const dl = Math.hypot(d2[0],d2[1])||1; d2=[d2[0]/dl, d2[1]/dl];
+  const hm = [(s0[0]+s1[0])/2, (s0[1]+s1[1])/2];
+  const angOf = theta => {   // 给定折叠角下面中心的屏幕方位角(绕铰链)
+    const Mr = mul(Mp, hingeD(f[2], f[4], theta*DEG));
+    const p2 = proj(viewOf(applyM(Mr, cenOf(ROLES[fi]))));
+    return Math.atan2((p2[0]-hm[0])*d2[1]-(p2[1]-hm[1])*d2[0], (p2[0]-hm[0])*d2[0]+(p2[1]-hm[1])*d2[1]);
+  };
+  const f0 = angles[ROLES[fi]];
+  const phi0 = angOf(f0);
+  const probe = angOf(Math.min(90, f0+2)) - phi0;   // +展开方向 → 屏幕角速度符号
+  const sense = probe>=0 ? 1 : -1;
+  drag = {fi, f0, hm, d2, phi0, sense};
+  mode='face';
+  HI=fi; send('HI='+fi+';');
+  canvas.style.cursor='grabbing';
+}
+function moveFaceDrag(mx, my){
+  const phi1 = Math.atan2((mx-drag.hm[0])*drag.d2[1]-(my-drag.hm[1])*drag.d2[0], (mx-drag.hm[0])*drag.d2[0]+(my-drag.hm[1])*drag.d2[1]);
+  let dphi = phi1 - drag.phi0;
+  while (dphi > Math.PI) dphi -= 2*Math.PI;
+  while (dphi < -Math.PI) dphi += 2*Math.PI;
+  const role = ROLES[drag.fi];
+  const nf = Math.max(0, Math.min(90, drag.f0 + drag.sense*dphi/DEG));
+  if (Math.abs(nf - angles[role]) > 1e-4){ angles[role] = nf; geomDirty = true; }
+}
+// 视图辅助
+let _cy=1,_sy=0,_cp=1,_sp=0;
+function refreshRot(){ _cy=Math.cos(yaw); _sy=Math.sin(yaw); _cp=Math.cos(pit); _sp=Math.sin(pit); }
+function viewOf(p){
+  const x=(p[0]-C[0])*scl, y=(p[1]-C[1])*scl, z=(p[2]-C[2])*scl;
+  const x1 = x*_cy - z*_sy, z1 = x*_sy + z*_cy;
+  return [x1, y*_cp - z1*_sp, y*_sp + z1*_cp];
+}
+function viewDirOf(v){
+  const x1 = v[0]*_cy - v[2]*_sy, z1 = v[0]*_sy + v[2]*_cy;
+  return [x1, v[1]*_cp - z1*_sp, v[1]*_sp + z1*_cp];
+}
+function quadCenView(fi){ const q=quadsView[fi]; return [0,1,2].map(k=>(q[0][k]+q[1][k]+q[2][k]+q[3][k])/4); }
+
+// ================= 控件 =================
+document.getElementById('btnOpen').onclick = ()=>{ tween = {from:{...angles}, to:{T:90,F:90,BA:90,L:90,R:90}, t0:performance.now(), dur:900}; };
+document.getElementById('btnClose').onclick = ()=>{ tween = {from:{...angles}, to:{T:0,F:0,BA:0,L:0,R:0}, t0:performance.now(), dur:900}; };
+document.getElementById('btnView').onclick = ()=>{ yaw=-0.55; pit=0.42; userZoom=1; geomDirty=true; };
+document.getElementById('ckGrid').onchange = e=> send('showgrid='+(e.target.checked?'true':'false')+';');
+
+// ================= 缩略图 =================
+const thumbColors = {B:'#218f87', T:'#33bfad', F:'#ed994d', BA:'#cc702b', L:'#9e82e8', R:'#785cc9'};
+const thumbsDiv = document.getElementById('thumbs');
+NETS.forEach((net, i)=>{
+  const d = document.createElement('div');
+  d.className = 'thumb' + (i===0?' active':'');
+  let x0=1e9,z0=1e9,x1=-1e9,z1=-1e9;
+  for (const r of net.L){ x0=Math.min(x0,r[1]); z0=Math.min(z0,r[2]); x1=Math.max(x1,r[1]+r[3]); z1=Math.max(z1,r[2]+r[4]); }
+  const w=x1-x0, h=z1-z0, s=Math.min(60/w, 44/h);
+  let rects='';
+  for (const r of net.L)
+    rects += `<rect x="${((r[1]-x0)*s+2).toFixed(1)}" y="${((r[2]-z0)*s+2).toFixed(1)}" width="${(r[3]*s).toFixed(1)}" height="${(r[4]*s).toFixed(1)}" fill="${thumbColors[r[0]]}" stroke="#0b1220" stroke-width="0.8"/>`;
+  d.innerHTML = `<svg width="${(w*s+4).toFixed(0)}" height="${(h*s+4).toFixed(0)}" viewBox="0 0 ${(w*s+4).toFixed(0)} ${(h*s+4).toFixed(0)}">${rects}</svg><div class="tn">${net.n}</div>`;
+  d.onclick = ()=>{
+    netIdx = i;
+    angles = {T:0,F:0,BA:0,L:0,R:0}; tween=null;
+    geomDirty = true;
+    document.querySelectorAll('.thumb').forEach((t,k)=>t.classList.toggle('active', k===i));
+  };
+  thumbsDiv.appendChild(d);
+});
+
+// ================= URL 参数(net=N&open=1) =================
+setTimeout(function(){
+  const q = new URLSearchParams(location.search);
+  const n = parseInt(q.get('net'));
+  if (!isNaN(n) && n>=1 && n<=NETS.length) {
+    netIdx = n-1;
+    document.querySelectorAll('.thumb').forEach((t,k)=>t.classList.toggle('active', k===netIdx));
+    angles = {T:0,F:0,BA:0,L:0,R:0}; geomDirty = true;
+  }
+  if (q.get('open')==='1'){ angles = {T:90,F:90,BA:90,L:90,R:90}; geomDirty = true; }
+  refreshRot(); geomDirty = true;
+}, 80);
+
+refreshRot();
+})();
+</script>
+</body>
+</html>
+
+

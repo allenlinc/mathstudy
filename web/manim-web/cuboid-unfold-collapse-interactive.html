@@ -1,0 +1,990 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>长方体 · 收缩与展开 — manim-web 交互动画</title>
+<style>
+  :root{
+    --bg:#141417;
+    --panel:rgba(21,21,26,.86);
+    --line:#2b2b33;
+    --ink:#e9e9ee;
+    --ink-dim:#9a9aa6;
+    --accent:#58c4dd;          /* Manim BLUE_C */
+    --c-a:#f0ac5f;             /* Manim GOLD  · 长 */
+    --c-b:#5cd0b3;             /* Manim TEAL  · 宽 */
+    --c-h:#fc6255;             /* Manim RED   · 高 */
+    --serif:Georgia,"Times New Roman","Songti SC","SimSun",serif;
+    --sans:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --mono:"Cascadia Mono",Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden}
+
+  /* ── 3D 舞台 ─────────────────────────────── */
+  #stage{position:fixed;inset:0}
+  #stage canvas{display:block}
+
+  /* ── 顶部标题 ────────────────────────────── */
+  #masthead{position:fixed;top:26px;left:30px;pointer-events:none;user-select:none}
+  #masthead h1{font-family:var(--serif);font-weight:500;font-size:23px;letter-spacing:.04em;color:var(--ink)}
+  #masthead .sub{margin-top:7px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-dim)}
+  #masthead .hint{margin-top:4px;font-size:12px;color:var(--ink-dim)}
+  #masthead .hint b{color:var(--ink);font-weight:600}
+
+  /* ── 右上读数 HUD ─────────────────────────── */
+  #hud{position:fixed;top:26px;right:30px;text-align:right;pointer-events:none;user-select:none}
+  #hud .f{font-family:var(--serif);font-size:16px;color:var(--ink-dim);line-height:1.7}
+  #hud .f i{font-style:italic;color:var(--ink)}
+  #hud .f b{font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums;margin-left:2px}
+  #hud .chip{display:inline-block;margin-top:8px;padding:3px 10px;border:1px solid var(--line);
+             font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--ink-dim)}
+
+  /* ── 底部控制面板 ─────────────────────────── */
+  #panel{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
+         width:min(94vw,640px);background:var(--panel);border:1px solid var(--line);
+         border-radius:4px;backdrop-filter:blur(10px);padding:13px 18px 15px}
+  .tabs{display:flex;gap:6px;margin-bottom:11px;border-bottom:1px solid var(--line);padding-bottom:10px}
+  .tab{appearance:none;background:transparent;border:1px solid transparent;color:var(--ink-dim);
+       font-family:var(--sans);font-size:13px;padding:5px 12px;cursor:pointer;border-radius:3px}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--accent);border-color:var(--line);background:rgba(88,196,221,.08)}
+
+  .sliders{display:flex;gap:16px;flex-wrap:wrap}
+  .sl{display:flex;flex-direction:column;gap:5px;flex:1 1 160px;min-width:150px}
+  .sl.off{opacity:.35;pointer-events:none}
+  .sl .row{display:flex;justify-content:space-between;align-items:baseline}
+  .sl .chip{font-size:12px;color:var(--c);letter-spacing:.03em}
+  .sl input[type=range]{width:100%;accent-color:var(--c);height:18px;cursor:pointer;background:transparent}
+  .sl output{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--c);
+             font-variant-numeric:tabular-nums}
+
+  .btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+  .btns button{appearance:none;background:transparent;border:1px solid var(--line);color:var(--ink);
+       font-family:var(--sans);font-size:13px;letter-spacing:.05em;padding:7px 18px;cursor:pointer;
+       border-radius:3px;transition:border-color .15s,color .15s,background .15s}
+  .btns button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  .btns button:disabled{opacity:.4;cursor:default}
+  .btns button[aria-pressed="true"],
+  .btns button[aria-pressed="true"]:hover:not(:disabled){border-color:var(--accent);color:#0e1418;background:var(--accent);font-weight:600}
+  .cnt{margin-left:auto;font-size:13px;color:var(--ink-dim)}
+  .cnt b{color:var(--accent);font-family:var(--serif);font-size:15px}
+
+  /* ── 手动展开实验室 ───────────────────────── */
+  .labhint{font-size:12.5px;color:var(--ink-dim);line-height:1.9;margin-bottom:2px}
+  .labhint b{color:var(--accent);font-weight:600}
+  #gallery{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}
+  #gallery .slot{position:relative}
+  #gallery canvas{border:1px solid var(--line);border-radius:3px;background:rgba(255,255,255,.02);display:block}
+  #gallery .slot.found canvas{border-color:var(--accent);background:rgba(88,196,221,.06)}
+  #gallery .tag{position:absolute;left:0;right:0;bottom:-1px;text-align:center;font-family:var(--mono);
+                font-size:9px;color:var(--ink-dim);letter-spacing:.04em;pointer-events:none}
+  #gallery .slot.found .tag{color:var(--accent)}
+  .toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);padding:9px 24px;z-index:25;
+         border:1px solid var(--accent);background:rgba(18,28,34,.94);color:var(--accent);
+         font-size:14px;letter-spacing:.06em;border-radius:4px;opacity:0;transition:opacity .35s;pointer-events:none}
+  .toast.show{opacity:1}
+
+  /* ── 加载 / 失败 ──────────────────────────── */
+  #loader{position:fixed;inset:0;display:flex;flex-direction:column;gap:14px;align-items:center;
+          justify-content:center;background:var(--bg);z-index:30;transition:opacity .5s}
+  #loader.done{opacity:0;pointer-events:none}
+  #loader .ring{width:26px;height:26px;border:2px solid var(--line);border-top-color:var(--accent);
+                border-radius:50%;animation:spin 1s linear infinite}
+  #loader p{font-family:var(--mono);font-size:12px;color:var(--ink-dim);letter-spacing:.08em}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #fatal{position:fixed;inset:0;display:none;flex-direction:column;gap:14px;align-items:center;
+         justify-content:center;background:var(--bg);z-index:40;text-align:center;padding:30px}
+  #fatal.show{display:flex}
+  #fatal h2{font-family:var(--serif);font-weight:500;font-size:19px}
+  #fatal p{font-size:13px;color:var(--ink-dim);max-width:420px;line-height:1.8}
+  #fatal button{appearance:none;background:transparent;border:1px solid var(--accent);color:var(--accent);
+                padding:8px 26px;cursor:pointer;font-size:13px;border-radius:3px}
+  @media (max-width:640px){
+    #masthead{top:16px;left:16px}#masthead h1{font-size:18px}
+    #hud{top:16px;right:16px}#hud .f{font-size:13px}
+    #panel{bottom:12px;padding:10px 12px 12px}
+  }
+</style>
+</head>
+<body>
+
+<div id="stage"></div>
+
+<header id="masthead">
+  <h1>长方体 · 收缩与展开</h1>
+  <p class="sub">manim-web 0.39 · WebGL 实时渲染</p>
+  <p class="hint"><b>左键</b> 按住面拖动 / 空白处旋转 · <b>右键</b> 旋转视角 · <b>滚轮</b> 缩放 · <b>R</b> 复位</p>
+</header>
+
+<div id="hud" aria-live="polite">
+  <div class="f"><i>V</i> = a·b·h =<b id="vV">—</b></div>
+  <div class="f"><i>S</i> = 2(ab+bh+ah) =<b id="vS">—</b></div>
+  <div class="chip" id="chipState">加载中…</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<nav id="panel">
+  <div class="tabs" role="tablist">
+    <button class="tab active" id="tabBox" role="tab" aria-selected="true">尺寸调节</button>
+    <button class="tab" id="tabLab" role="tab" aria-selected="false">手动展开 · 11 种</button>
+  </div>
+
+  <div id="ctlBox">
+    <div class="sliders">
+      <label class="sl" style="--c:var(--c-a)"><span class="row"><span class="chip">长 a</span><output id="oa">4.2</output></span>
+        <input id="sa" type="range" min="0.4" max="6" step="0.1" value="4.2"></label>
+      <label class="sl" style="--c:var(--c-b)"><span class="row"><span class="chip">宽 b</span><output id="ob">2.6</output></span>
+        <input id="sb" type="range" min="0.4" max="6" step="0.1" value="2.6"></label>
+      <label class="sl" style="--c:var(--c-h)"><span class="row"><span class="chip">高 h</span><output id="oh">1.8</output></span>
+        <input id="sh" type="range" min="0.4" max="6" step="0.1" value="1.8"></label>
+    </div>
+    <div class="btns">
+      <button id="bReset">复位</button>
+      <button id="bSpin" aria-pressed="false">自转</button>
+    </div>
+  </div>
+
+  <div id="ctlLab" hidden>
+    <p class="labhint">按住一个面，<b>向外拖动</b>——它就绕着棱翻开（拖回去可折上；想让面换一条棱翻，就朝那个方向拉）。
+    把六个面全部摊平，就得到一种展开图。长方体共有 <b>11 种</b>展开图，动手把它们全部找出来吧！</p>
+    <div class="btns">
+      <button id="bFoldAll">重置拼回</button>
+      <button id="bClear">清空记录</button>
+      <span class="cnt">已发现 <b id="labCnt">0</b> / 11 种</span>
+    </div>
+    <div id="gallery"></div>
+  </div>
+</nav>
+
+<div id="loader"><div class="ring"></div><p>正在加载 manim-web 引擎（需联网 · jsDelivr CDN）…</p></div>
+<div id="fatal">
+  <h2>引擎加载失败</h2>
+  <p id="fatalMsg">manim-web 通过 CDN 加载，请确认网络可用后重试。</p>
+  <button onclick="location.reload()">重试</button>
+</div>
+
+<script type="module">
+/* ══════════════════════════════════════════════════════════════════
+   长方体 · 收缩与展开 —— 基于 manim-web (TypeScript port of Manim)
+   页签一「收缩 · 展开」：ThreeDScene + Box3D，scene.play 驱动
+   页签二「手动展开 · 11 种」：六薄板 + 动态铰链树，按住面拖拽展开，
+   摊平后自动识别 11 种经典展开图（启动时枚举 384 棵生成树建立图鉴）
+   坐标系：Z 轴向上（Manim 约定），x=长 a，y=宽 b，z=高 h
+   ══════════════════════════════════════════════════════════════════ */
+
+const V_PKGS = '0.39.4';
+const CDNS = [
+  `https://cdn.jsdelivr.net/npm/manim-web@${V_PKGS}/dist/manim-web.browser.js`,
+  `https://unpkg.com/manim-web@${V_PKGS}/dist/manim-web.browser.js`,
+];
+
+const $ = id => document.getElementById(id);
+function fatal(msg){ $('fatalMsg').textContent = msg; $('fatal').classList.add('show'); $('loader').classList.add('done'); }
+
+let M;
+try {
+  M = await Promise.race([
+    (async () => { for (const u of CDNS){ try { return await import(u); } catch(e){ /* 试下一个源 */ } } throw new Error('all CDNs failed'); })(),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), 20000)),
+  ]);
+} catch(e){ fatal('manim-web 引擎加载失败：请确认网络可用后点击「重试」。'); throw e; }
+
+const { ThreeDScene, Box3D, Line3D, Dot3D, Text, PI } = M;
+
+/* ── 向量 / 四元数（自包含，零外部依赖）───────────────────────── */
+const vadd=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+const vsub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const vscl=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
+const vdot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const vcross=(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const vlen=a=>Math.hypot(a[0],a[1],a[2]);
+const vnorm=a=>{const l=vlen(a)||1;return [a[0]/l,a[1]/l,a[2]/l];};
+const qAxis=(u,ang)=>{const s=Math.sin(ang/2);return [u[0]*s,u[1]*s,u[2]*s,Math.cos(ang/2)];};
+const qMul=(a,b)=>[
+  a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],
+  a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],
+  a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],
+  a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2]];
+const qConj=q=>[-q[0],-q[1],-q[2],q[3]];
+const qRot=(q,v)=>{           // v' = v + 2w(q×v) + 2 q×(q×v)
+  const t=vcross([q[0],q[1],q[2]],v);
+  const u2=vscl(t,2);
+  return vadd(vadd(v, vscl(u2,q[3])), vcross([q[0],q[1],q[2]], u2));
+};
+function qDeltaAngleAxis(qTarget,qCur){      // 从 qCur 转到 qTarget 的最短角轴
+  let dq=qMul(qTarget,qConj(qCur));
+  if(dq[3]<0){dq=[-dq[0],-dq[1],-dq[2],-dq[3]];}
+  const w=Math.min(1,Math.max(-1,dq[3]));
+  const ang=2*Math.acos(w), s=Math.sqrt(1-w*w);
+  if(s<1e-7||ang<1e-7) return null;
+  return {angle:ang, axis:[dq[0]/s,dq[1]/s,dq[2]/s]};
+}
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const easeOutCubic=t=>1-Math.pow(1-t,3);
+
+/* ── 调色（Manim CE palette）────────────────────────────────────── */
+const COL = {
+  face:'#58c4dd', edge:'#dde8f2', grid:'#40404c', gridAx:'#5a5a68',
+  a:'#f0ac5f', b:'#5cd0b3', h:'#fc6255', white:'#f2f5f8',
+};
+
+/* ── 全局状态 ───────────────────────────────────────────────────── */
+const DEF = { a:4.2, b:2.6, h:1.8 };
+const EPS = .03;
+const state = {
+  base:{...DEF}, disp:{...DEF},
+  s:0.05, mode:'box', spin:false,
+};
+
+/* ── 场景 ───────────────────────────────────────────────────────── */
+let scene;
+try {
+  scene = new ThreeDScene($('stage'), {
+    backgroundColor:'#18181c',
+    phi:1.12, theta:-0.85, distance:17, fov:42,
+    orbitControlsOptions:{ enableDamping:true, dampingFactor:0.08,
+      minDistance:7, maxDistance:46, autoRotateSpeed:1.1 },
+  });
+} catch(e){ fatal('WebGL 初始化失败：' + e.message); throw e; }
+scene.orbitControls.setTarget([0, 0, 0.9]);
+scene.setLookAt([0, 0, 0.9]);
+/* 右键 = 旋转视角（关闭平移）；左键空白处同样旋转 */
+try {
+  const oc = scene.orbitControls.getControls();
+  oc.mouseButtons = { LEFT:0, MIDDLE:1, RIGHT:0 };   // 0=ROTATE 1=DOLLY 2=PAN
+  oc.enablePan = false;
+} catch(e){}
+
+/* ── 地面网格 ───────────────────────────────────────────────────── */
+const gridMobs = [];
+{
+  const R = 7;
+  for (let k = -R; k <= R; k++){
+    const ax = (k === 0) ? COL.gridAx : COL.grid;
+    const w  = (k === 0) ? 1.6 : 1;
+    gridMobs.push(new Line3D({ start:[k,-R,-0.02], end:[k,R,-0.02], color:ax, lineWidth:w, opacity:.55 }));
+    gridMobs.push(new Line3D({ start:[-R,k,-0.02], end:[R,k,-0.02], color:ax, lineWidth:w, opacity:.55 }));
+  }
+  scene.add(...gridMobs);
+}
+
+/* ══════════ 页签一：收缩 · 展开（整体缩放）══════════ */
+const box = new Box3D({ width:.1, height:.1, depth:.1, color:COL.face, opacity:.30 });
+const edges = [];
+const EDGE_IDX = [[0,1],[1,3],[3,2],[2,0],[4,5],[5,7],[7,6],[6,4],[0,4],[1,5],[3,7],[2,6]];
+for (let i=0;i<12;i++) edges.push(new Line3D({ start:[0,0,0], end:[.1,0,0], color:COL.edge, lineWidth:2.2, opacity:.95 }));
+const dots = [];
+for (let i=0;i<8;i++) dots.push(new Dot3D({ point:[0,0,0], radius:.062, color:COL.white, glow:true, glowIntensity:1.3 }));
+
+const mkDim = (c) => ({
+  line: new Line3D({ start:[0,0,0], end:[.1,0,0], color:c, lineWidth:2.4, opacity:.95 }),
+  d1:   new Dot3D({ point:[0,0,0], radius:.045, color:c }),
+  d2:   new Dot3D({ point:[0,0,0], radius:.045, color:c }),
+  label: new Text({ text:'', fontSize:30, color:c, fontStyle:'normal',
+                    fontFamily:'Georgia, "Times New Roman", "Noto Serif", serif',
+                    t2s:{ a:'italic', b:'italic', h:'italic' } }),
+});
+const dimA = mkDim(COL.a), dimB = mkDim(COL.b), dimH = mkDim(COL.h);
+const dimAll = [dimA, dimB, dimH];
+const boxMobs = [box, ...edges, ...dots, ...dimAll.flatMap(d => [d.line, d.d1, d.d2, d.label])];
+scene.add(...boxMobs);
+scene.addFixedOrientationMobjects(dimA.label, dimB.label, dimH.label);
+
+const dimSide = { y:-1, x:1 };
+let lastLab = { a:'', b:'', h:'' };
+function effDims(){ const s = state.s; return [state.disp.a*s, state.disp.b*s, state.disp.h*s]; }
+function applyAll(){
+  const [a,b,h] = effDims();
+  box.setWidth(a); box.setHeight(b); box.setDepth(h); box.moveTo([0, 0, h/2]);
+  const pts = [
+    [-a/2,-b/2,0],[a/2,-b/2,0],[-a/2,b/2,0],[a/2,b/2,0],
+    [-a/2,-b/2,h],[a/2,-b/2,h],[-a/2,b/2,h],[a/2,b/2,h]];
+  dots.forEach((d,i)=>d.moveTo(pts[i]));
+  EDGE_IDX.forEach(([i,j],k)=>{ edges[k].setStart(pts[i]); edges[k].setEnd(pts[j]); });
+  try {
+    const p = scene.camera3D && scene.camera3D.position;
+    if (p){
+      const tgt = scene.orbitControls.getTarget();
+      const az = Math.atan2(p.y-tgt.y, p.x-tgt.x), sy = Math.sin(az), sx = Math.cos(az);
+      if (sy >  .15) dimSide.y =  1; else if (sy < -.15) dimSide.y = -1;
+      if (sx >  .15) dimSide.x =  1; else if (sx < -.15) dimSide.x = -1;
+    }
+  } catch(e){}
+  const ys = dimSide.y, xs = dimSide.x, off = .5;
+  dimA.line.setStart([-a/2, ys*(b/2+off),.01]); dimA.line.setEnd([a/2, ys*(b/2+off),.01]);
+  dimA.d1.moveTo([-a/2, ys*(b/2+off),.01]);     dimA.d2.moveTo([a/2, ys*(b/2+off),.01]);
+  dimB.line.setStart([xs*(a/2+off),-b/2,.01]);  dimB.line.setEnd([xs*(a/2+off),b/2,.01]);
+  dimB.d1.moveTo([xs*(a/2+off),-b/2,.01]);      dimB.d2.moveTo([xs*(a/2+off),b/2,.01]);
+  dimH.line.setStart([xs*(a/2+off),ys*(b/2+off),0]); dimH.line.setEnd([xs*(a/2+off),ys*(b/2+off),h]);
+  dimH.d1.moveTo([xs*(a/2+off),ys*(b/2+off),0]);     dimH.d2.moveTo([xs*(a/2+off),ys*(b/2+off),h]);
+  dimA.label.moveTo([0, ys*(b/2+off+.42), .42]);
+  dimB.label.moveTo([xs*(a/2+off+.42), 0, .42]);
+  dimH.label.moveTo([xs*(a/2+off+.85), ys*(b/2+off+.85), h*.6]);
+  const ta = `a = ${a.toFixed(2)}`, tb = `b = ${b.toFixed(2)}`, thh = `h = ${h.toFixed(2)}`;
+  if (ta !== lastLab.a){ dimA.label.setText(ta); lastLab.a = ta; }
+  if (tb !== lastLab.b){ dimB.label.setText(tb); lastLab.b = tb; }
+  if (thh !== lastLab.h){ dimH.label.setText(thh); lastLab.h = thh; }
+  $('vV').textContent = (a*b*h).toFixed(2);
+  $('vS').textContent = (2*(a*b + b*h + a*h)).toFixed(2);
+  $('chipState').textContent = state.s >= .985 ? '展开 100%' : `收缩至 ${Math.round(state.s*100)}%`;
+}
+
+/* ══════════ 页签二：手动展开实验室 ══════════════════ */
+/* 面编号：D下 F前 B后 R右 L左 T上（D 为根，固定在桌面）*/
+const FIDS = ['D','F','B','L','R','T'];
+const faceCenters = ({a,b,h}) => ({
+  D:[0,0,0], T:[0,0,h], F:[0,b/2,h/2], B:[0,-b/2,h/2], R:[a/2,0,h/2], L:[-a/2,0,h/2] });
+const slabDims = ({a,b,h}) => ({
+  D:[a,b,EPS], T:[a,b,EPS], F:[a,EPS,h], B:[a,EPS,h], R:[EPS,b,h], L:[EPS,b,h] });
+const surfDef = ({a,b,h}) => ({     // 外表面矩形：局部轴 + 半宽
+  D:{ax:[0,1],half:[a/2,b/2]}, T:{ax:[0,1],half:[a/2,b/2]},
+  F:{ax:[0,2],half:[a/2,h/2]}, B:{ax:[0,2],half:[a/2,h/2]},
+  R:{ax:[1,2],half:[b/2,h/2]}, L:{ax:[1,2],half:[b/2,h/2]} });
+/* 12 条邻接棱（闭合位形下的世界坐标）*/
+function adjPairs(dims){
+  const {a,b,h}=dims;
+  return [
+    ['D','F',[0, b/2,0],[1,0,0]], ['D','B',[0,-b/2,0],[1,0,0]],
+    ['D','R',[a/2,0,0],[0,1,0]],  ['D','L',[-a/2,0,0],[0,1,0]],
+    ['T','F',[0, b/2,h],[1,0,0]], ['T','B',[0,-b/2,h],[1,0,0]],
+    ['T','R',[a/2,0,h],[0,1,0]],  ['T','L',[-a/2,0,h],[0,1,0]],
+    ['F','R',[a/2, b/2,h/2],[0,0,1]], ['F','L',[-a/2, b/2,h/2],[0,0,1]],
+    ['B','R',[a/2,-b/2,h/2],[0,0,1]], ['B','L',[-a/2,-b/2,h/2],[0,0,1]] ];
+}
+/* 有向铰链常量表 HINGE[N][F]：tC=子面闭合中心-父面中心；P=棱中点(父局部)；u=棱轴；s=外翻符号
+   运动学：q_H = q(u, s·θ)；pH = P + R(q_H)(tC−P)；世界位姿 = 父位姿 ∘ (pH, q_H)  */
+function hingeTable(dims){
+  const c0 = faceCenters(dims), H = {};
+  for (const [A,B,P,u] of adjPairs(dims)){
+    for (const [N,F] of [[A,B],[B,A]]){       // 正反两个方向都登记
+      const tC = vsub(c0[F], c0[N]), Pl = vsub(P, c0[N]);
+      const cr = vcross(u, vsub(tC, Pl));
+      // 外翻判据：切向指向铰链棱的“背离父面体”一侧（即朝 Pl 方向）
+      const s = (vdot(cr, Pl) >= 0 ? 1 : -1);
+      (H[N] ||= {})[F] = { tC, P:Pl, u, s };
+    }
+  }
+  return H;
+}
+const neighborsOf = dims => {
+  const nb = {}; for (const [A,B] of adjPairs(dims)){ (nb[A] ||= []).push(B); (nb[B] ||= []).push(A); } return nb;
+};
+/* 纯函数：给定树 + 各面开合角 → 六面世界位姿 */
+function computeLayout(parentMap, thetas, dims, H){
+  const c0 = faceCenters(dims);
+  const pose = { D:{ p:c0.D.slice(), q:[0,0,0,1] } };
+  let todo = FIDS.filter(x=>x!=='D');
+  for (let g=0; g<6 && todo.length; g++){
+    todo = todo.filter(F=>{
+      const N = parentMap[F];
+      if (!pose[N]) return true;
+      const {tC,P,u,s} = H[N][F], th = thetas[F] ?? 0;
+      const qH = qAxis(u, s*th);
+      const pH = vadd(P, qRot(qH, vsub(tC,P)));
+      pose[F] = { p: vadd(pose[N].p, qRot(pose[N].q, pH)), q: qMul(pose[N].q, qH) };
+      return false;
+    });
+  }
+  return pose;
+}
+const ALL90 = { F:Math.PI/2, B:Math.PI/2, L:Math.PI/2, R:Math.PI/2, T:Math.PI/2 };
+const DEF_TREE = { F:'D', B:'D', L:'D', R:'D', T:'F' };
+
+/* ── 展开图图鉴：枚举 384 棵生成树 → 归纳全部图案 ───────────────── */
+const K20 = 20;   // 坐标 ×20 取整（尺寸步长 0.1 ⇒ 半单位坐标必为 0.05 的整数倍）
+function rectsOf(pose, dims){
+  const sd = surfDef(dims), out = {};
+  for (const id of FIDS){
+    const {p,q} = pose[id], {ax,half} = sd[id];
+    let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+    for (const si of [-1,1]) for (const sj of [-1,1]){
+      const l=[0,0,0]; l[ax[0]]=si*half[0]; l[ax[1]]=sj*half[1];
+      const w = vadd(p, qRot(q,l));
+      x0=Math.min(x0,w[0]); x1=Math.max(x1,w[0]); y0=Math.min(y0,w[1]); y1=Math.max(y1,w[1]);
+    }
+    out[id] = { cx:Math.round((x0+x1)/2*K20), cy:Math.round((y0+y1)/2*K20),
+                hx:Math.round((x1-x0)/2*K20), hy:Math.round((y1-y0)/2*K20) };
+  }
+  return out;
+}
+const DIHEDRAL = [
+  r=>[r.cx, r.cy, r.hx, r.hy], r=>[-r.cy, r.cx, r.hy, r.hx], r=>[-r.cx,-r.cy, r.hx, r.hy], r=>[r.cy,-r.cx, r.hy, r.hx],
+  r=>[-r.cx, r.cy, r.hx, r.hy], r=>[r.cx,-r.cy, r.hx, r.hy],
+  r=>[-r.cy,-r.cx, r.hy, r.hx], r=>[r.cy, r.cx, r.hy, r.hx],
+];
+function shapeSig(rects){
+  let best = null;
+  for (const f of DIHEDRAL){
+    const arr = FIDS.map(id=>f(rects[id])).sort((p,q)=>p[0]-q[0]||p[1]-q[1]||p[2]-q[2]||p[3]-q[3]);
+    const s = arr.map(r=>r.join(',')).join(';');
+    if (best===null || s<best) best = s;
+  }
+  return best;
+}
+function contactsOfImpl(rects){
+  const ids = FIDS, out = [];
+  for (let i=0;i<ids.length;i++) for (let j=i+1;j<ids.length;j++){
+    const A=rects[ids[i]], B=rects[ids[j]];
+    const ox = Math.min(A.cx+A.hx, B.cx+B.hx) - Math.max(A.cx-A.hx, B.cx-B.hx);
+    const oy = Math.min(A.cy+A.hy, B.cy+B.hy) - Math.max(A.cy-A.hy, B.cy-B.hy);
+    const yGap = Math.abs(A.cy-B.cy) - (A.hy+B.hy);
+    const xGap = Math.abs(A.cx-B.cx) - (A.hx+B.hx);
+    if (ox>1 && Math.abs(yGap)<=1){       // 上下贴
+      const top = A.cy>B.cy ? ids[i] : ids[j], bot = top===ids[i]?ids[j]:ids[i];
+      out.push({a:top, b:bot, da:3, db:1});          // 3=S 1=N
+    } else if (oy>1 && Math.abs(xGap)<=1){ // 左右贴
+      const rgt = A.cx>B.cx ? ids[i] : ids[j], lft = rgt===ids[i]?ids[j]:ids[i];
+      out.push({a:rgt, b:lft, da:2, db:0});          // 2=W 0=E
+    }
+  }
+  return out;
+}
+/* 图案签名：无标签接触图（含方向），在 8 种平面等距 × 全部点重标下取规范最小形
+   —— 同一经典图案的不同尺寸安排会被合并 ⇒ 恰得 11 种 */
+const PERMS = (()=>{ const res=[],arr=FIDS.slice();
+  (function go(k){ if(k===arr.length){res.push(arr.slice());return;} for(let i=k;i<arr.length;i++){[arr[k],arr[i]]=[arr[i],arr[k]];go(k+1);[arr[k],arr[i]]=[arr[i],arr[k]];} })(0);
+  return res; })();
+function patternSig(rects, contacts){
+  let best = null;
+  for (const f of DIHEDRAL){
+    const tr = {}; FIDS.forEach(id=>{ const v=f(rects[id]); tr[id]={cx:v[0],cy:v[1],hx:v[2],hy:v[3]}; });
+    const cons = contactsOfImpl(tr);
+    for (const perm of PERMS){
+      const rank = {}; perm.forEach((id,k)=>rank[id]=k);
+      const parts = cons.map(c=>`${rank[c.a]}${c.da}-${rank[c.b]}${c.db}`).sort();
+      const s = parts.join('|');
+      if (best===null || s<best) best = s;
+    }
+  }
+  return best;
+}
+/* 经典命名：找最长的直条带（对棱相连的面链）*/
+function patternName(rects, contacts){
+  const nb = {}; FIDS.forEach(id=>nb[id]={});
+  for (const c of contacts){ nb[c.a][c.da]=c.b; nb[c.b][c.db]=c.a; }   // da/db 互为对侧
+  const opp = d => (d+2)%4;
+  const strips = [];                                   // 所有极大直条带（去重）
+  const seenStrip = new Set();
+  for (const start of FIDS) for (let d0=0; d0<4; d0++){
+    if (!nb[start][d0]) continue;
+    const path=[start]; const used=new Set([start]);
+    let cur=start, dir=d0;
+    while (true){ const nxt=nb[cur][dir]; if(!nxt||used.has(nxt)) break; path.push(nxt); used.add(nxt); cur=nxt; }
+    let bcur=start, bdir=opp(d0);                      // 反向延伸补全整条
+    while (true){ const nxt=nb[bcur][bdir]; if(!nxt||used.has(nxt)) break; path.unshift(nxt); used.add(nxt); bcur=nxt; }
+    const key = path.slice().sort().join('');
+    if (!seenStrip.has(key)){ seenStrip.add(key); strips.push(path); }
+  }
+  strips.sort((x,y)=>y.length-x.length);
+  const L = strips[0]?.length || 0;
+  if (L>=4) return '1-4-1 型';
+  if (L===3){
+    if ((strips[1]?.length||0) >= 3){
+      // 3-3：两条三条带平行错位、跨界接触 ≥2；否则是 2-3-1（仅端点相接）
+      const A = new Set(strips[0]);
+      let cross = 0;
+      for (const c of contacts) if (A.has(c.a)!==A.has(c.b)) cross++;
+      return cross >= 2 ? '3-3 型' : '2-3-1 型';
+    }
+    return '2-3-1 型';
+  }
+  return '2-2-2 型';
+}
+function enumeratePatterns(dims){
+  const H = hingeTable(dims);
+  const pairs = adjPairs(dims);
+  const shapes = new Map(), shapeToPattern = new Map(), patterns = [];
+  const idx = [...Array(pairs.length).keys()];
+  const combos = (n,k)=>{ const res=[],cur=[]; (function go(s){ if(cur.length===k){res.push(cur.slice());return;} for(let i=s;i<n;i++){cur.push(i);go(i+1);cur.pop();} })(0); return res; };
+  for (const combo of combos(pairs.length, 5)){
+    // 并查集判生成树
+    const fa = {}; FIDS.forEach(x=>fa[x]=x);
+    const find = x=>fa[x]===x?x:(fa[x]=find(fa[x]));
+    let ok = true;
+    for (const ei of combo){ const [A,B]=pairs[ei]; const ra=find(A),rb=find(B); if(ra===rb){ok=false;break;} fa[ra]=rb; }
+    if (!ok) continue;
+    const tEdges = combo.map(ei=>pairs[ei]);
+    const parentMap = {};                       // 从 D BFS 定根
+    const nb = {}; for (const [A,B] of tEdges){ (nb[A] ||= []).push(B); (nb[B] ||= []).push(A); }
+    const seen = new Set(['D']); const qq=['D'];
+    while(qq.length){ const x=qq.shift(); for(const y of nb[x]||[]) if(!seen.has(y)){ seen.add(y); parentMap[y]=x; qq.push(y); } }
+    if (seen.size<6) continue;
+    const pose = computeLayout(parentMap, ALL90, dims, H);
+    const rects = rectsOf(pose, dims);
+    const sk = shapeSig(rects);
+    if (shapes.has(sk)) continue;
+    shapes.set(sk,1);
+    const contacts = contactsOfImpl(rects);
+    const pk = patternSig(rects, contacts);
+    let pi = patterns.findIndex(p=>p.key===pk);
+    if (pi<0){ patterns.push({ key:pk, name:patternName(rects,contacts), rects }); pi = patterns.length-1; }
+    shapeToPattern.set(sk, patterns[pi].key);
+  }
+  patterns.sort((x,y)=>x.name.localeCompare(y.name,'zh')||x.key.localeCompare(y.key));
+  const shapeToIdx = new Map(); for (const [sk,pk] of shapeToPattern) shapeToIdx.set(sk, patterns.findIndex(p=>p.key===pk));
+  return { patterns, shapeToIdx };
+}
+
+/* ── 实验室运行时状态 ─────────────────────────────────────────── */
+const lab = {
+  built:false, dims:null, slabs:{}, mobs:[],
+  parent:{...DEF_TREE}, theta:{F:0,B:0,L:0,R:0,T:0},
+  pose:null, qApplied:{}, H:null, nb:null,
+  patterns:null, shapeToIdx:null, discovered:new Set(),
+  hover:null,
+};
+let labTweens = [];    // {id,from,to,t0,dur}
+let labDirty = false;
+
+function buildLab(){
+  const dims = { ...state.disp };
+  removeLab();
+  lab.dims = dims; lab.H = hingeTable(dims); lab.nb = neighborsOf(dims);
+  const sd = slabDims(dims);
+  for (const id of FIDS){
+    const [w,hh,d] = sd[id];
+    const slab = new Box3D({ width:w, height:hh, depth:d, color:COL.face, opacity:.32 });
+    lab.slabs[id] = slab; lab.mobs.push(slab);
+    lab.qApplied[id] = [0,0,0,1];
+  }
+  // 外表面描边（作为薄板子对象，随铰链运动）
+  const sd0 = surfDef(dims);
+  for (const id of FIDS){
+    const {ax,half} = sd0[id];
+    const sign = (id==='D'||id==='B'||id==='L') ? -1 : 1;
+    const mk = (si,sj)=>{ const l=[0,0,0]; l[ax[0]]=si*half[0]; l[ax[1]]=sj*half[1]; l[lab.axisOf(id)]=sign*EPS/2; return l; };
+    const c = [mk(-1,-1), mk(1,-1), mk(1,1), mk(-1,1)];
+    for (let k=0;k<4;k++){
+      lab.slabs[id].add(new Line3D({ start:c[k], end:c[(k+1)%4], color:COL.edge, lineWidth:2, opacity:.9 }));
+    }
+  }
+  lab.parent = { ...DEF_TREE };
+  lab.theta = { F:0,B:0,L:0,R:0,T:0 };
+  scene.add(...lab.mobs);
+  lab.built = true;
+  $('vV').textContent = (dims.a*dims.b*dims.h).toFixed(2);
+  $('vS').textContent = (2*(dims.a*dims.b + dims.b*dims.h + dims.a*dims.h)).toFixed(2);
+  applyLab();
+}
+lab.axisOf = function(id){ return {D:2,T:2,F:1,B:1,R:0,L:0}[id]; };
+function removeLab(){
+  if (!lab.mobs.length) return;
+  scene.remove(...lab.mobs);
+  lab.mobs.forEach(m=>{ try{ m.dispose?.(); }catch(e){} });
+  lab.mobs = []; lab.slabs = {}; lab.built = false; lab.hover = null;
+}
+function computeAndApply(){
+  lab.pose = computeLayout(lab.parent, lab.theta, lab.dims, lab.H);
+  for (const id of FIDS){
+    const {p,q} = lab.pose[id];
+    const d = qDeltaAngleAxis(q, lab.qApplied[id]);
+    if (d) lab.slabs[id].rotate(d.angle, d.axis);
+    lab.slabs[id].moveTo(p);
+    lab.qApplied[id] = q;
+  }
+}
+function applyLab(){ computeAndApply(); }
+
+/* ── 拾取（射线 × 六面外表面矩形）────────────────────────────── */
+function camBasis(){
+  const c = scene.camera3D;
+  const eye = [c.position.x, c.position.y, c.position.z];
+  const up  = (c.up && [c.up.x,c.up.y,c.up.z]) || [0,0,1];
+  const t = scene.orbitControls.getTarget();
+  const tgt = [t.x,t.y,t.z];
+  const f = vnorm(vsub(tgt, eye));
+  const r = vnorm(vcross(f, up));
+  const u2 = vcross(r, f);
+  const fov = ((c.fov ?? 42) * Math.PI/180);
+  return { eye, f, r, u2, fov };
+}
+function project(pt, B, W, H){
+  const v = vsub(pt, B.eye), depth = Math.max(1e-4, vdot(v, B.f));
+  const fpx = (H/2) / Math.tan(B.fov/2);
+  return { x: W/2 + fpx*vdot(v,B.r)/depth, y: H/2 - fpx*vdot(v,B.u2)/depth, depth };
+}
+function rayAt(mx,my){
+  const canvas = scene.getCanvas();
+  const W = canvas.clientWidth, Hh = canvas.clientHeight;
+  const B = camBasis();
+  const nx = (mx/W)*2-1, ny = -((my/Hh)*2-1);
+  const th = Math.tan(B.fov/2);
+  const dir = vnorm(vadd(vadd(B.f, vscl(B.r, nx*th*(W/Hh))), vscl(B.u2, ny*th)));
+  return { eye:B.eye, dir };
+}
+function pickFace(mx, my){
+  if (!lab.built) return null;
+  const { eye, dir } = rayAt(mx,my);
+  let best = null, bestT = 1e9;
+  const sd = surfDef(lab.dims);
+  for (const id of FIDS){
+    if (id==='D') continue;                       // 底面是桌面锚，不抓
+    const {p,q} = lab.pose[id], {ax,half} = sd[id];
+    const n = [0,0,0]; n[lab.axisOf(id)] = 1; const nW = qRot(q,n);
+    const den = vdot(dir, nW); if (Math.abs(den)<1e-6) continue;
+    const t = vdot(vsub(p,eye), nW)/den; if (t<0.05 || t>bestT) continue;
+    const hit = vadd(eye, vscl(dir,t));
+    const u1 = qRot(q, (()=>{const v=[0,0,0];v[ax[0]]=1;return v;})());
+    const u2 = qRot(q, (()=>{const v=[0,0,0];v[ax[1]]=1;return v;})());
+    const lx = vdot(vsub(hit,p), u1), ly = vdot(vsub(hit,p), u2);
+    if (Math.abs(lx)<=half[0]+.12 && Math.abs(ly)<=half[1]+.12){ best=id; bestT=t; }
+  }
+  return best;
+}
+
+/* ── 拖拽：抓面 → 选铰链 → 雅可比映射角度 ─────────────────────── */
+let drag = null;
+function faceCenter(id){ return lab.pose[id].p; }
+function centerAt(id, th){                       // 该面在角度 th 时的中心（探测用）
+  const N = lab.parent[id], {tC,P,u,s} = lab.H[N][id];
+  const {p:pN,q:qN} = lab.pose[N];
+  const qH = qAxis(u, s*th);
+  return vadd(pN, qRot(qN, vadd(P, qRot(qH, vsub(tC,P)))));
+}
+function inSubtree(root, node){                  // node 是否在 root 的子树内（防圈）
+  let y = node;
+  while (y){ if (y===root) return true; y = lab.parent[y]; }
+  return false;
+}
+function canvasXY(e){
+  const r = scene.getCanvas().getBoundingClientRect();
+  return [e.clientX-r.left, e.clientY-r.top, r.width, r.height];
+}
+function buildJac(id, N){                        // 面绕 N 棱旋转的角度映射基
+  const {tC,P,u,s} = lab.H[N][id];
+  const {p:pN,q:qN} = lab.pose[N];
+  const Hw = vadd(pN, qRot(qN, P));
+  const uw = vnorm(qRot(qN, u));
+  const cCur = lab.pose[id].p;
+  let a1 = vsub(cCur, Hw); a1 = vsub(a1, vscl(uw, vdot(a1,uw))); a1 = vnorm(a1);
+  const a2 = vcross(uw, a1);
+  const probe = vadd(pN, qRot(qN, vadd(P, qRot(qAxis(u, s*0.12), vsub(tC,P)))));
+  let dp = vsub(probe, Hw); dp = vsub(dp, vscl(uw, vdot(dp,uw)));
+  return { Hw, uw, a1, a2, sgn: s, th0: lab.theta[id] };   // 开切向恒为 s·a2 ⇒ sgn=s 恒成立
+}
+function onPointerDown(e){
+  if (state.mode!=='lab' || e.button!==0 || !lab.built) return;
+  const [mx,my] = canvasXY(e);
+  const id = pickFace(mx,my);
+  if (!id) return;                               // 空白处 → 交给 OrbitControls 旋转
+  const isOpen = lab.theta[id] > 1e-3;
+  drag = { id, locked:isOpen, hinge:isOpen?lab.parent[id]:null,
+           sx:e.clientX, sy:e.clientY, moved:0 };
+  if (isOpen) drag.jac = buildJac(id, lab.parent[id]);
+  labTweens = labTweens.filter(t=>t.id!==id);
+  try { scene.orbitControls.disable(); } catch(err){}
+  try { scene.getCanvas().setPointerCapture(e.pointerId); } catch(err){}
+  e.preventDefault();
+}
+function selectHinge(id, dx, dy){               // 按拖动方向选铰链棱（世界空间落点评分）
+  const B = camBasis();
+  const dragW = vnorm(vadd(vscl(B.r, dx), vscl(B.u2, -dy)));
+  const cC = faceCenter(id);
+  let bestN=null, bestScore=-1e9; const cands=[];
+  for (const N of lab.nb[id] || []){
+    if (inSubtree(id, N)) continue;                              // 防圈
+    const {tC,P,u,s} = lab.H[N][id];
+    const {p:pN,q:qN} = lab.pose[N];
+    const qH90 = qAxis(u, s*Math.PI/2);                          // 该铰链下摊平时的落点中心
+    const land = vadd(pN, qRot(qN, vadd(P, qRot(qH90, vsub(tC,P)))));
+    const dir = vnorm(vsub(land, cC));
+    const score = vdot(dragW, dir);
+    cands.push({ N, score:+score.toFixed(3), land:land.map(x=>+x.toFixed(2)) });
+    if (score>bestScore){ bestScore=score; bestN=N; }
+  }
+  if (bestScore < 0.15) bestN = null;     // 拖动方向与任何落点都不一致（如朝下拽顶面）→ 不开
+  return { bestN, cands };
+}
+function onPointerMove(e){
+  if (state.mode!=='lab') return;
+  if (!drag){
+    const [mx,my] = canvasXY(e);
+    const id = pickFace(mx,my);
+    if (id !== lab.hover){
+      if (lab.hover) try{ lab.slabs[lab.hover].setFillOpacity(.32); }catch(err){}
+      if (id) try{ lab.slabs[id].setFillOpacity(.5); }catch(err){}
+      lab.hover = id;
+      scene.getCanvas().style.cursor = id ? 'grab' : 'default';
+    }
+    return;
+  }
+  const dx = e.clientX-drag.sx, dy = e.clientY-drag.sy;
+  drag.moved = Math.hypot(dx,dy);
+  const canvas = scene.getCanvas();
+  canvas.style.cursor = 'grabbing';
+  if (!drag.locked && drag.moved>12){            // 按拖动方向选铰链棱（世界空间落点评分）
+    const dx = e.clientX-drag.sx, dy = e.clientY-drag.sy;
+    const sel = selectHinge(drag.id, dx, dy);
+    if (sel.bestN){
+      lab.parent[drag.id]=sel.bestN; drag.hinge=sel.bestN; drag.locked=true;
+      drag.jac = buildJac(drag.id, sel.bestN);   // 建立旋转平面基，指针绕棱角度直接映射开合角
+    }
+    /* 未选中：保持抓取，改方向仍可开 */
+  }
+  if (drag.locked && drag.jac){                  // 指针绕棱角度 → 开合角（1:1 直控）
+    const [mx,my] = canvasXY(e);
+    const { eye, dir } = rayAt(mx,my);
+    const J = drag.jac;
+    const den = vdot(dir, J.uw);
+    if (Math.abs(den) > 0.05){
+      const t = vdot(vsub(J.Hw, eye), J.uw)/den;
+      if (t > 0){
+        const Q = vadd(eye, vscl(dir,t));        // 指针射线与旋转平面的交点
+        let d = vsub(Q, J.Hw);
+        d = vsub(d, vscl(J.uw, vdot(d, J.uw)));
+        const phi = Math.atan2(vdot(d,J.a2), vdot(d,J.a1));
+        let nt = clamp(J.th0 + J.sgn*phi, 0, Math.PI/2);
+        if (nt > Math.PI/2-.06) nt = Math.PI/2;  // 接近摊平 → 磁吸
+        if (nt < .06) nt = 0;                    // 接近闭合 → 磁吸
+        window.__dragDbg = { phi:+phi.toFixed(3), sgn:J.sgn, th0:+J.th0.toFixed(3), nt:+nt.toFixed(3),
+                             a1:J.a1.map(x=>+x.toFixed(2)), d:[+d[0].toFixed(2),+d[1].toFixed(2),+d[2].toFixed(2)] };
+        lab.theta[drag.id] = nt;
+        computeAndApply();
+        if (nt===Math.PI/2) checkFlat();         // 六面摊平的瞬间即计数
+      }
+    }
+  }
+}
+function onPointerUp(e){
+  if (!drag) return;
+  snapFace(drag.id);                               // 松手：贴近摊平/闭合时吸附
+  drag = null;
+  try { scene.orbitControls.enable(); } catch(err){}
+  scene.getCanvas().style.cursor = 'default';
+}
+function snapFace(id){
+  const th = lab.theta[id];
+  let target = null;
+  if (th < .15) target = 0;
+  else if (th > Math.PI/2-.15) target = Math.PI/2;
+  if (target===null){ if (th>=Math.PI/2-1e-4) checkFlat(); return; }
+  labTweens.push({ id, from:th, to:target, t0:performance.now(), dur:220 });
+}
+function processTweens(now){
+  if (!labTweens.length) return;
+  let changed = false;
+  labTweens = labTweens.filter(t=>{
+    const a = clamp((now-t.t0)/t.dur, 0, 1);
+    lab.theta[t.id] = t.from + (t.to-t.from)*easeOutCubic(a);
+    changed = true;
+    if (a>=1){ lab.theta[t.id]=t.to; if (t.to===Math.PI/2) checkFlat(); return false; }
+    return true;
+  });
+  if (changed) computeAndApply();
+}
+function checkFlat(){
+  for (const id of ['F','B','L','R','T']) if (lab.theta[id] < Math.PI/2-1e-4) return;
+  const rects = rectsOf(lab.pose, lab.dims);
+  const sk = shapeSig(rects);
+  const idx = lab.shapeToIdx.get(sk);
+  if (idx===undefined){ console.warn('[lab] unknown shape'); return; }
+  const p = lab.patterns[idx];
+  if (!lab.discovered.has(idx)){
+    lab.discovered.add(idx);
+    saveDiscovered();
+    renderGallery();
+    toast(`新发现！第 ${idx+1} 种展开图：${p.name}（已收集 ${lab.discovered.size}/${lab.patterns.length}）`);
+  }
+  updateLabHUD();
+}
+let toastTimer = null;
+function toast(msg){
+  const el = $('toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>el.classList.remove('show'), 2600);
+}
+function renderGallery(){
+  const g = $('gallery'); g.innerHTML = '';
+  lab.patterns.forEach((p,i)=>{
+    const slot = document.createElement('div');
+    slot.className = 'slot' + (lab.discovered.has(i)?' found':'');
+    const cv = document.createElement('canvas');
+    cv.width = 64; cv.height = 46;
+    const ctx = cv.getContext('2d');
+    let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+    for (const id of FIDS){ const r=p.rects[id];
+      x0=Math.min(x0,r.cx-r.hx); x1=Math.max(x1,r.cx+r.hx); y0=Math.min(y0,r.cy-r.hy); y1=Math.max(y1,r.cy+r.hy); }
+    const sc = Math.min(56/(x1-x0), 38/(y1-y0));
+    const ox = 32 - (x0+x1)/2*sc, oy = 22 - (y0+y1)/2*sc;
+    for (const id of FIDS){ const r=p.rects[id];
+      ctx.beginPath();
+      ctx.rect((r.cx-r.hx)*sc+ox, (r.cy-r.hy)*sc+oy, r.hx*2*sc, r.hy*2*sc);
+      if (lab.discovered.has(i)){ ctx.fillStyle='rgba(88,196,221,.30)'; ctx.fill(); ctx.strokeStyle='#58c4dd'; }
+      else { ctx.strokeStyle='#3c3c46'; }
+      ctx.lineWidth = 1; if(!lab.discovered.has(i)) ctx.setLineDash([3,3]);
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    const tag = document.createElement('div');
+    tag.className='tag'; tag.textContent = lab.discovered.has(i) ? p.name.replace(' 型','') : '?';
+    slot.appendChild(cv); slot.appendChild(tag); g.appendChild(slot);
+  });
+  $('labCnt').textContent = String(lab.discovered.size);
+}
+function updateLabHUD(){ $('chipState').textContent = `已发现 ${lab.discovered.size} / ${lab.patterns.length} 种`; }
+
+/* ── 发现记录持久化：cookie 优先；file:// 下浏览器丢弃 cookie，自动回退 localStorage ── */
+const SAVE_KEY = 'cuboid_net11';
+function saveDiscovered(){
+  const payload = JSON.stringify([...lab.discovered].sort((x,y)=>x-y));
+  let ok = false;
+  try {
+    document.cookie = SAVE_KEY+'='+encodeURIComponent(payload)+';path=/;max-age=31536000;SameSite=Lax';
+    ok = new RegExp('(?:^|;\\s*)'+SAVE_KEY+'=').test(document.cookie||'');
+  } catch(e){}
+  if (!ok){ try { localStorage.setItem(SAVE_KEY, payload); } catch(e){} }
+}
+function loadDiscovered(){
+  let raw = null;
+  try {
+    const m = (document.cookie||'').match(new RegExp('(?:^|;\\s*)'+SAVE_KEY+'=([^;]*)'));
+    if (m) raw = decodeURIComponent(m[1]);
+  } catch(e){}
+  if (!raw){ try { raw = localStorage.getItem(SAVE_KEY); } catch(e){} }
+  if (!raw) return;
+  try {
+    JSON.parse(raw).forEach(i=>{ if (Number.isInteger(i) && i>=0 && i<(lab.patterns?.length||0)) lab.discovered.add(i); });
+  } catch(e){}
+}
+function clearDiscovered(){
+  lab.discovered.clear();
+  try { document.cookie = SAVE_KEY+'=;path=/;max-age=0;SameSite=Lax'; } catch(e){}
+  try { localStorage.removeItem(SAVE_KEY); } catch(e){}
+  renderGallery(); updateLabHUD();
+}
+function foldAll(){
+  labTweens = [];
+  for (const id of ['F','B','L','R','T']){
+    if (lab.theta[id] > 1e-3) labTweens.push({ id, from:lab.theta[id], to:0, t0:performance.now(), dur:450 });
+  }
+}
+
+/* ── 模式切换 ─────────────────────────────────────────────────── */
+function setMode(mode){
+  if (state.mode===mode) return;
+  state.mode = mode;
+  const labOn = mode==='lab';
+  $('tabBox').classList.toggle('active', !labOn);
+  $('tabLab').classList.toggle('active', labOn);
+  $('tabBox').setAttribute('aria-selected', String(!labOn));
+  $('tabLab').setAttribute('aria-selected', String(labOn));
+  $('ctlBox').hidden = labOn;
+  $('ctlLab').hidden = !labOn;
+  $('chipState').style.display = labOn ? '' : 'none';
+  ['sa','sb','sh'].forEach(id=>$(id).closest('.sl').classList.toggle('off', labOn));
+  if (labOn){
+    scene.remove(...boxMobs);
+    if (!lab.built || !lab.patterns){
+      buildLab();
+      if (!lab.patterns){
+        const en = enumeratePatterns(lab.dims);
+        lab.patterns = en.patterns; lab.shapeToIdx = en.shapeToIdx;
+        loadDiscovered();
+        console.log(`[lab] 展开图图案数：${lab.patterns.length}（应为 11）`,
+          lab.patterns.map(p=>p.name).join('、'));
+      }
+      renderGallery(); updateLabHUD();
+    } else {
+      buildLab(); renderGallery(); updateLabHUD();
+    }
+  } else {
+    removeLab();
+    scene.add(...boxMobs);
+    scene.addFixedOrientationMobjects(dimA.label, dimB.label, dimH.label);
+    applyAll();
+  }
+}
+
+/* ── 页签一：开场绽放补间（自绘 rAF，稳定无依赖）──────────── */
+/* ── 页签一：开场绽放补间（自绘 rAF，稳定无依赖）──────────── */
+let boxTween = null;
+function processBoxTween(now){
+  if (!boxTween) return;
+  const a = clamp((now-boxTween.t0)/boxTween.dur, 0, 1);
+  state.s = boxTween.from + (boxTween.to-boxTween.from)*easeOutCubic(a);
+  applyAll();
+  if (a>=1){ state.s = boxTween.to; boxTween = null; }
+}
+
+/* ── 控件绑定 ─────────────────────────────────────────────────── */
+const sliders = { a:$('sa'), b:$('sb'), h:$('sh') };
+const outs = { a:$('oa'), b:$('ob'), h:$('oh') };
+for (const p of ['a','b','h']){
+  sliders[p].addEventListener('input', ()=>{
+    state.base[p] = parseFloat(sliders[p].value);
+    outs[p].textContent = state.base[p].toFixed(1);
+  });
+}
+$('bReset').onclick = () => {
+  for (const p of ['a','b','h']){ state.base[p]=DEF[p]; sliders[p].value=DEF[p]; outs[p].textContent=DEF[p].toFixed(1); }
+  try { scene.orbitControls.reset(); scene.orbitControls.setTarget([0,0,.9]); scene.setLookAt([0,0,.9]); } catch(e){}
+};
+$('bSpin').onclick = () => {
+  state.spin = !state.spin;
+  $('bSpin').setAttribute('aria-pressed', String(state.spin));
+  scene.orbitControls.setAutoRotate(state.spin);
+};
+$('bFoldAll').onclick = () => foldAll();
+$('bClear').onclick = () => { clearDiscovered(); toast('记录已清空，重新开始收集吧！'); };
+$('tabBox').onclick = () => setMode('box');
+$('tabLab').onclick = () => setMode('lab');
+
+window.addEventListener('keydown', e => {
+  if (e.code==='KeyR' && e.target===document.body) $('bReset').click();
+});
+
+/* 画布指针事件（手动展开）*/
+{
+  const cv = scene.getCanvas();
+  cv.addEventListener('pointerdown', onPointerDown);
+  cv.addEventListener('pointermove', onPointerMove);
+  cv.addEventListener('pointerup', onPointerUp);
+  cv.addEventListener('pointercancel', onPointerUp);
+}
+
+/* ── 渲染循环 ─────────────────────────────────────────────────── */
+let lastT = null;
+function tick(now){
+  if (lastT===null) lastT = now;
+  const dt = Math.min(.05,(now-lastT)/1000); lastT = now;
+  if (state.mode==='box'){
+    const k = 1-Math.exp(-dt*14);
+    ['a','b','h'].forEach(p=>{ state.disp[p] += (state.base[p]-state.disp[p])*k; });
+    processBoxTween(now);
+    applyAll();
+  } else {
+    processTweens(now);
+  }
+  if (!drag){ try { scene.orbitControls.update(); } catch(e){} }
+  scene.render();
+  requestAnimationFrame(tick);
+}
+
+/* ── 调试 / 测试钩子 ──────────────────────────────────────────── */
+window.__lab = {
+  theta: () => ({...lab.theta}),
+  parent: () => ({...lab.parent}),
+  setFace: (id, deg) => { lab.theta[id] = deg*Math.PI/180; computeAndApply(); },
+  openAll: () => { for (const id of ['F','B','L','R','T']) lab.theta[id]=Math.PI/2; computeAndApply(); checkFlat(); },
+  info: () => ({ mode:state.mode, count:lab.patterns?.length, discovered:[...lab.discovered],
+                 names:lab.patterns?.map(p=>p.name) }),
+  screenPos: id => { const B=camBasis(); const c=scene.getCanvas();
+    return project(lab.pose[id].p, B, c.clientWidth, c.clientHeight); },
+  camAz: () => { const c=scene.camera3D, t=scene.orbitControls.getTarget();
+    return Math.atan2(c.position.y-t.y, c.position.x-t.x); },
+  pickAt: (x,y) => pickFace(x,y),
+  selectHinge: (id, dx, dy) => selectHinge(id, dx, dy),
+};
+
+/* ── 启动 ─────────────────────────────────────────────────────── */
+applyAll();
+$('chipState').style.display = 'none';
+requestAnimationFrame(tick);
+$('loader').classList.add('done');
+setTimeout(() => { boxTween = { from: state.s, to: 1, t0: performance.now(), dur: 1400 }; }, 500);   // 开场：从一点绽放
+</script>
+</body>
+</html>

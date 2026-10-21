@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>长方体的展开与收缩 · 11 种展开方式 · JSXGraph</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsxgraph@1.14.0/distrib/jsxgraph.css">
+<script src="https://cdn.jsdelivr.net/npm/jsxgraph@1.14.0/distrib/jsxgraphcore.js"></script>
+<style>
+:root{
+  --paper:#f5f3ec; --panel:#fbfaf6; --line:#e3ded2; --ink:#243240; --ink2:#66737f;
+  --accent:#c2452d; --accent-d:#a2351f; --board-bg:#fdfdfb;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:15px/1.65 "Segoe UI","Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif;
+  -webkit-font-smoothing:antialiased}
+.app{display:flex;flex-direction:column;height:100vh;min-height:540px}
+header{display:flex;align-items:center;gap:14px;padding:12px 20px;
+  border-bottom:1px solid var(--line);background:var(--panel)}
+h1{margin:0;font-family:"KaiTi","STKaiti","楷体",serif;font-size:21px;line-height:1.2;
+  font-weight:700;letter-spacing:.05em}
+.sub{color:var(--ink2);font-size:12.5px;letter-spacing:.06em}
+.chip{margin-left:auto;font-size:12.5px;color:var(--accent-d);border:1px solid var(--accent);
+  padding:3px 10px;border-radius:3px;background:#fff;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+main{flex:1;display:flex;min-height:0}
+.stage{flex:1;min-width:0;padding:14px;display:flex}
+#jxgbox{flex:1;min-width:0;border:1px solid var(--line);background:var(--board-bg);
+  border-radius:4px;user-select:none;-webkit-user-select:none;touch-action:none;
+  overflow:hidden}
+aside{width:330px;flex:none;border-left:1px solid var(--line);background:var(--panel);
+  overflow-y:auto;padding:2px 16px 16px}
+aside section{padding:11px 0;border-bottom:1px solid var(--line)}
+aside section:last-of-type{border-bottom:none}
+aside h2{margin:0 0 8px;font-size:12px;font-weight:700;color:var(--ink2);letter-spacing:.16em}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;
+  font-family:inherit;font-size:14px;font-weight:600;padding:9px 12px;border-radius:3px;
+  border:1px solid transparent;transition:background .15s,border-color .15s,color .15s}
+.btn.primary{width:100%;background:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-d)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--ink2)}
+.btn.small{font-size:12.5px;padding:5px 10px;margin-top:6px}
+.btnrow{display:flex;gap:8px;margin-bottom:8px}
+.btnrow .btn{flex:1}
+.netgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.netbtn{cursor:pointer;font-family:inherit;border:1px solid var(--line);background:#fff;
+  border-radius:3px;padding:5px 2px;text-align:center;line-height:1.35}
+.netbtn b{display:block;font-size:14px;font-weight:700;color:var(--ink)}
+.netbtn span{display:block;font-size:10.5px;color:var(--ink2)}
+.netbtn:hover{border-color:var(--ink2)}
+.netbtn.on{border-color:var(--accent);background:#fdf3f0}
+.netbtn.on b{color:var(--accent-d)}
+.row{display:flex;align-items:center;gap:9px;margin:8px 0;font-size:13px}
+.row>span{width:46px;flex:none;color:var(--ink2)}
+.row>b{width:52px;flex:none;text-align:right;font-variant-numeric:tabular-nums;
+  font-weight:600;font-size:13px}
+input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+.check{display:flex;align-items:center;gap:8px;font-size:13.5px;margin:7px 0;cursor:pointer}
+.check input{accent-color:var(--accent)}
+.formula{font-family:Consolas,"Courier New",monospace;font-size:13.5px;margin:5px 0}
+.formula b{color:var(--accent-d);font-weight:700}
+.legend{display:flex;flex-wrap:wrap;gap:6px 13px;font-size:12.5px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend b{font-weight:600;color:var(--ink2);font-variant-numeric:tabular-nums;
+  font-size:12px;min-width:32px;text-align:right}
+.sw{width:11px;height:11px;border-radius:2px;border:1px solid rgba(0,0,0,.22);display:inline-block}
+.hint{font-size:12.5px;color:var(--ink2);margin:8px 0 0;line-height:1.8}
+.hint b{color:var(--ink)}
+.offline{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;
+  color:var(--ink2);font-size:15px;line-height:2}
+@media (max-width:880px){
+  .app{height:auto;min-height:100vh}
+  main{flex-direction:column}
+  .stage{min-height:52vh;flex:none}
+  aside{width:100%;border-left:none;border-top:1px solid var(--line);overflow:visible}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>长方体的展开与收缩</h1>
+    <span class="sub">11 种展开方式 · JSXGraph</span>
+    <span class="chip" id="chip">—</span>
+  </header>
+  <main>
+    <div class="stage" id="stage">
+      <div id="jxgbox" class="jxgbox"></div>
+    </div>
+    <aside>
+      <section>
+        <h2>展开方式（11 种连接）</h2>
+        <div class="netgrid" id="netgrid"></div>
+      </section>
+
+      <section>
+        <div class="btnrow">
+          <button id="btnPlay" class="btn primary" aria-pressed="true"></button>
+        </div>
+        <div class="btnrow">
+          <button id="btnToNet" class="btn ghost">展开成平面图</button>
+          <button id="btnToBox" class="btn ghost">收成长方体</button>
+        </div>
+        <label class="row"><span>倍速</span>
+          <input type="range" id="rngSpeed" min="0.25" max="2" step="0.25" value="1">
+          <b id="valSpeed">1.00×</b>
+        </label>
+        <p class="hint"><b>左键按住一个面拖动</b>：向外拉开展开、向里推合拢，
+          靠近 0° / 90° 松手自动吸附。<b>按住鼠标右键拖动</b>旋转视角，滚轮缩放。</p>
+      </section>
+
+      <section>
+        <h2>长方体尺寸</h2>
+        <label class="row"><span>长 a</span>
+          <input type="range" id="rngA" min="2" max="5" step="0.1" value="4">
+          <b id="valA">4.0</b>
+        </label>
+        <label class="row"><span>宽 b</span>
+          <input type="range" id="rngB" min="2" max="4" step="0.1" value="3">
+          <b id="valB">3.0</b>
+        </label>
+        <label class="row"><span>高 c</span>
+          <input type="range" id="rngC" min="1" max="4" step="0.1" value="2">
+          <b id="valC">2.0</b>
+        </label>
+      </section>
+
+      <section>
+        <h2>度量</h2>
+        <div class="formula">V = abc = <b id="outV">—</b></div>
+        <div class="formula">S = 2(ab+bc+ca) = <b id="outS">—</b></div>
+      </section>
+
+      <section>
+        <h2>显示</h2>
+        <label class="check"><input type="checkbox" id="chkLabels">顶点标签 A–H</label>
+        <button id="btnResetView" class="btn ghost small">重置视角</button>
+      </section>
+
+      <section>
+        <h2>各面展开角度</h2>
+        <div class="legend">
+          <span><i class="sw" style="background:#8b97a8"></i>下面<b>固定</b></span>
+          <span><i class="sw" style="background:#3e6fb0"></i>前面<b id="angF">90°</b></span>
+          <span><i class="sw" style="background:#2f8f83"></i>后面<b id="angK">90°</b></span>
+          <span><i class="sw" style="background:#d69239"></i>左面<b id="angL">90°</b></span>
+          <span><i class="sw" style="background:#bd5c81"></i>右面<b id="angR">90°</b></span>
+          <span><i class="sw" style="background:#579750"></i>上面<b id="angT">90°</b></span>
+        </div>
+      </section>
+
+      <p class="hint">
+        换一种连接方式，长方体外观不变，拉平后得到的展开图却不同——
+        逐一实验 11 种，看看它们为什么都能围成长方体。<br>
+        基于 JSXGraph 1.14（MIT / LGPL 双许可）构建。
+      </p>
+    </aside>
+  </main>
+</div>
+<noscript><p style="padding:20px">本页面需要启用 JavaScript 才能运行。</p></noscript>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  window.addEventListener('error', function (ev) {
+    var st = document.getElementById('stage');
+    if (st) {
+      st.innerHTML = '<div class="offline"><b>出错了</b><br>' +
+        (ev.message || '未知错误') + '</div>';
+    }
+  });
+
+  if (typeof JXG === 'undefined') {
+    $('stage').innerHTML =
+      '<div class="offline"><b>无法加载 JSXGraph</b><br>' +
+      '本页面需要联网访问 cdn.jsdelivr.net，请检查网络后刷新重试。</div>';
+    return;
+  }
+
+  var HALF = Math.PI / 2;
+
+  /* ================= 面的元数据 =================
+     b 下面 / f 前面 / k 后面 / l 左面 / r 右面 / t 上面
+     封闭长方体：x∈[-a/2,a/2] 长 a，y∈[0,b] 宽 b，z∈[0,c] 高 c
+     顶点：A(-a/2,0,0) B(a/2,0,0) C(a/2,b,0) D(-a/2,b,0)
+          E(-a/2,0,c) F(a/2,0,c) G(a/2,b,c) H(-a/2,b,c) */
+  var FACE_META = {
+    b: { name: '下面', fill: '#8b97a8', line: '#5d6b7c' },
+    f: { name: '前面', fill: '#3e6fb0', line: '#2c4f80' },
+    k: { name: '后面', fill: '#2f8f83', line: '#20615a' },
+    l: { name: '左面', fill: '#d69239', line: '#9a671f' },
+    r: { name: '右面', fill: '#bd5c81', line: '#87405e' },
+    t: { name: '上面', fill: '#579750', line: '#3d6d38' }
+  };
+  var CYCLE = {                       // 每个面沿封闭体表面的顶点环
+    b: ['A', 'B', 'C', 'D'],
+    f: ['A', 'B', 'F', 'E'],
+    r: ['B', 'C', 'G', 'F'],
+    k: ['C', 'D', 'H', 'G'],
+    l: ['D', 'A', 'E', 'H'],
+    t: ['E', 'F', 'G', 'H']
+  };
+  var EDGE_FACES = {                  // 12 条棱 → 相邻的两个面
+    AB: ['b', 'f'], BC: ['b', 'r'], CD: ['b', 'k'], DA: ['b', 'l'],
+    EF: ['f', 't'], FG: ['r', 't'], GH: ['k', 't'], HE: ['l', 't'],
+    AE: ['f', 'l'], BF: ['f', 'r'], CG: ['r', 'k'], DH: ['k', 'l']
+  };
+  var EDGE_VERTS = {
+    AB: ['A', 'B'], BC: ['B', 'C'], CD: ['C', 'D'], DA: ['D', 'A'],
+    EF: ['E', 'F'], FG: ['F', 'G'], GH: ['G', 'H'], HE: ['H', 'E'],
+    AE: ['A', 'E'], BF: ['B', 'F'], CG: ['C', 'G'], DH: ['D', 'H']
+  };
+  var FACES6 = ['b', 'f', 'k', 'l', 'r', 't'];
+  var MOVES = ['f', 'k', 'l', 'r', 't'];
+
+  function faceEdges(f) {             // 一个面的 4 条棱 id
+    var out = [];
+    for (var e in EDGE_FACES) {
+      if (EDGE_FACES[e][0] === f || EDGE_FACES[e][1] === f) { out.push(e); }
+    }
+    return out;
+  }
+  function oppEdge(f, e) {            // 同一面内与 e 相对（不相交）的棱
+    var vs = EDGE_VERTS[e];
+    return faceEdges(f).filter(function (x) {
+      var v = EDGE_VERTS[x];
+      return v[0] !== vs[0] && v[0] !== vs[1] && v[1] !== vs[0] && v[1] !== vs[1];
+    })[0];
+  }
+  function edgeAtVertex(f, vtx, notE) {  // 面内经过顶点 vtx 的另一条棱
+    return faceEdges(f).filter(function (x) {
+      return x !== notE &&
+        (EDGE_VERTS[x][0] === vtx || EDGE_VERTS[x][1] === vtx);
+    })[0];
+  }
+
+  /* ================= 枚举 11 种展开方式 =================
+     展开方式 = 面邻接图（八面体图）的一棵支撑树；树的所有棱展开到平面
+     且单元格互不重叠 → 合法展开图；按“正方体化”的单元格形状做二面体
+     等价归类，恰好得到经典 11 类。 */
+  function enumNets() {
+    var ids = Object.keys(EDGE_FACES);
+    var valid = [];
+    var m, i;
+    for (m = 0; m < 4096; m++) {
+      var cnt = 0, chosen = [];
+      for (i = 0; i < 12; i++) {
+        if (m & (1 << i)) { cnt++; chosen.push(ids[i]); }
+      }
+      if (cnt !== 5) { continue; }
+      // 并查集判连通
+      var uf = {};
+      FACES6.forEach(function (f) { uf[f] = f; });
+      function find(x) { while (uf[x] !== x) { x = uf[x] = uf[uf[x]]; } return x; }
+      chosen.forEach(function (e) {
+        var p = find(EDGE_FACES[e][0]), q = find(EDGE_FACES[e][1]);
+        if (p !== q) { uf[p] = q; }
+      });
+      var root = find('b'), ok = true;
+      FACES6.forEach(function (f) { if (find(f) !== root) { ok = false; } });
+      if (ok) { valid.push(chosen); }
+    }
+
+      var seen = {}, nets = [];
+      var sides = ['f', 'k', 'l', 'r', 't'];
+      valid.forEach(function (edges) {
+        var info = layoutOf(edges);
+        if (!info) { return; }
+        var key = canonKey(info.cells);
+        if (seen[key] !== undefined) {
+        // 同类代表：优先选“尽量多的面直接连在下面”的树（得到经典十字等）
+        var bCount = function (pmap) {
+          var n = 0;
+          sides.forEach(function (f) { if (pmap[f] === 'b') { n++; } });
+          return n;
+        };
+        if (bCount(info.parent) > bCount(nets[seen[key]].parent)) {
+          info.key = nets[seen[key]].key;
+          info.type = nets[seen[key]].type;
+          nets[seen[key]] = info;
+        }
+        return;
+      }
+      seen[key] = nets.length;
+      info.key = key;
+      info.type = typeOf(info.cells);
+      nets.push(info);
+    });
+    var order = { '1-4-1': 0, '2-3-1': 1, '2-2-2': 2, '3-3': 3 };
+    nets.sort(function (x, y) {
+      return (order[x.type] - order[y.type]) || (x.key < y.key ? -1 : 1);
+    });
+    return nets;
+  }
+
+  var DIRV = { N: [0, 1], E: [1, 0], S: [0, -1], W: [-1, 0] };
+
+  function layoutOf(edges) {
+    var inTree = {};
+    edges.forEach(function (e) { inTree[e] = true; });
+    var info = {
+      parent: {}, dir: {}, order: ['b'], cells: {}, labels: {},
+      leids: {}, wdirs: {}, corners: {}
+    };
+    info.cells.b = [0, 0];
+    info.labels.b = CYCLE.b.slice();
+    info.leids.b = { S: 'AB', E: 'BC', N: 'CD', W: 'DA' };
+    info.wdirs.b = { N: [0, 1], E: [1, 0], S: [0, -1], W: [-1, 0] };
+    info.corners.b = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    var queue = ['b'];
+    while (queue.length) {
+      var p = queue.shift(), ip = info.cells[p],
+          lp = info.leids[p], wp = info.wdirs[p], cp = info.corners[p];
+      for (var d in DIRV) {
+        if (!DIRV.hasOwnProperty(d)) { continue; }
+        var e = lp[d];
+        if (!inTree[e]) { continue; }
+        var duo = EDGE_FACES[e];
+        var c = (duo[0] === p) ? duo[1] : duo[0];
+        if (info.cells[c]) { continue; }          // 已访问
+        var out = wp[d];                          // 跨过这条棱向外的方向
+        info.cells[c] = [ip[0] + out[0], ip[1] + out[1]];
+        info.parent[c] = p;
+        info.dir[c] = d;
+        // 子面四角（网格坐标）：铰链两角 + 沿外向方向平移
+        var map = (d === 'S') ? [0, 1] : (d === 'E') ? [1, 2]
+                : (d === 'N') ? [3, 2] : [0, 3];
+        var h1c = cp[map[0]], h2c = cp[map[1]];
+        info.corners[c] = [h1c, h2c,
+          [h2c[0] + out[0], h2c[1] + out[1]],
+          [h1c[0] + out[0], h1c[1] + out[1]]];
+        // 子面局部朝向：N 继续向外，E 朝 H2（m2）一侧
+        info.wdirs[c] = {
+          N: out, S: [-out[0], -out[1]],
+          E: [h2c[0] - h1c[0], h2c[1] - h1c[1]],
+          W: [h1c[0] - h2c[0], h1c[1] - h2c[1]]
+        };
+        // 顶点标签：铰链两端继承父面角点，远端由顶点环推出
+        var pl = info.labels[p];
+        var m1 = pl[map[0]], m2 = pl[map[1]];
+        var cyc = CYCLE[c], i1 = cyc.indexOf(m1), i2 = cyc.indexOf(m2);
+        var a1 = cyc[(i1 + 1) % 4], a2 = cyc[(i1 + 3) % 4];
+        var b1 = cyc[(i2 + 1) % 4], b2 = cyc[(i2 + 3) % 4];
+        info.labels[c] = [m1, m2, (b1 === m1 ? b2 : b1), (a1 === m2 ? a2 : a1)];
+        var eS = e, eN = oppEdge(c, eS);
+        info.leids[c] = {
+          S: eS, N: eN,
+          E: edgeAtVertex(c, m2, eS),
+          W: edgeAtVertex(c, m1, eS)
+        };
+        info.order.push(c);
+        queue.push(c);
+      }
+    }
+    if (info.order.length !== 6) { return null; }
+    var seenCell = {};
+    for (var f in info.cells) {
+      var kk = info.cells[f][0] + ',' + info.cells[f][1];
+      if (seenCell[kk]) { return null; }            // 平面重叠 → 非法
+      seenCell[kk] = 1;
+    }
+    return info;
+  }
+  function canonKey(cells) {
+    var arr = [];
+    for (var f in cells) { arr.push(cells[f]); }
+    function norm(pts) {
+      var mx = 1e9, my = 1e9;
+      pts.forEach(function (p) { mx = Math.min(mx, p[0]); my = Math.min(my, p[1]); });
+      var q = pts.map(function (p) { return [p[0] - mx, p[1] - my]; });
+      q.sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+      return q.map(function (p) { return p[0] + ':' + p[1]; }).join('|');
+    }
+    var best = null;
+    [[1, 0, 0, 1], [0, -1, 1, 0], [-1, 0, 0, -1], [0, 1, -1, 0],
+     [1, 0, 0, -1], [0, 1, 1, 0], [-1, 0, 0, 1], [0, -1, -1, 0]].forEach(function (T) {
+      var pts = arr.map(function (p) { return [T[0] * p[0] + T[1] * p[1], T[2] * p[0] + T[3] * p[1]]; });
+      var s = norm(pts);
+      if (best === null || s < best) { best = s; }
+    });
+    return best;
+  }
+  function typeOf(cells) {
+    var xs = [], ys = [], arr = [];
+    for (var f in cells) { arr.push(cells[f]); }
+    arr.forEach(function (p) { xs.push(p[0]); ys.push(p[1]); });
+    var w = Math.max.apply(null, xs) - Math.min.apply(null, xs) + 1;
+    var h = Math.max.apply(null, ys) - Math.min.apply(null, ys) + 1;
+    var rowCount = {}, colCount = {};
+    arr.forEach(function (p) {
+      rowCount[p[1]] = (rowCount[p[1]] || 0) + 1;
+      colCount[p[0]] = (colCount[p[0]] || 0) + 1;
+    });
+    var maxLine = Math.max(
+      Math.max.apply(null, Object.keys(rowCount).map(function (k) { return rowCount[k]; })),
+      Math.max.apply(null, Object.keys(colCount).map(function (k) { return colCount[k]; })));
+    if (maxLine >= 4) { return '1-4-1'; }
+    if ((w === 3 && h === 2) || (w === 2 && h === 3)) { return '3-3'; }
+    if (maxLine === 3) { return '2-3-1'; }
+    return '2-2-2';   // 阶梯形（最长线为 2）
+  }
+
+  var NETS = enumNets();
+
+  /* ================= 状态 ================= */
+  var S = { a: 4, b: 3, c: 2, net: 0, speed: 1,
+            ang: { f: HALF, k: HALF, l: HALF, r: HALF, t: HALF } };
+  var AZ0 = 2.05, EL0 = 0.42;
+  var SWEEP = 5200, DWELL = 900;
+  var mode = 'pingpong';
+  var u = 1, dir = -1, dwellUntil = 0, last = 0;
+
+  function ease(x) { return 0.5 - 0.5 * Math.cos(Math.PI * x); }
+  function invEase(y) { return Math.acos(1 - 2 * Math.min(1, Math.max(0, y))) / Math.PI; }
+  function clamp(x, a, b) { return Math.min(b, Math.max(a, x)); }
+
+  /* ================= 画布与三维视图 ================= */
+  var board = JXG.JSXGraph.initBoard('jxgbox', {
+    boundingbox: [-8, 8, 8, -8],
+    axis: false, showcopyright: false, shownavigation: false,
+    keepaspectratio: true,
+    pan: { enabled: false },
+    zoom: { wheel: true },
+    resize: { enabled: false }
+  });
+
+  var view = board.create('view3d', [
+      [-8, -8], [8, 8],
+      [[-9, 9], [-9, 9], [-9, 9]]
+    ], {
+      depthOrder: { enabled: true },
+      trackball: { enabled: false },
+      az: { start: AZ0, slider: { min: -7, max: 7 },
+            pointer: { enabled: true, button: 0, key: 'none', outside: false } },
+      el: { start: EL0, slider: { min: 0.02, max: 1.52 },
+            pointer: { enabled: true, button: 0, key: 'none', outside: false } },
+      bank: { pointer: { enabled: false } },
+      xPlaneRear:   { visible: false }, yPlaneRear:   { visible: false }, zPlaneRear:   { visible: false },
+      xPlaneFront:  { visible: false }, yPlaneFront:  { visible: false }, zPlaneFront:  { visible: false },
+      xAxis: { visible: false }, yAxis: { visible: false }, zAxis: { visible: false }
+    });
+
+  view.az_slide.setAttribute({ visible: false });
+  view.el_slide.setAttribute({ visible: false });
+  view.bank_slide.setAttribute({ visible: false });
+  view.az_slide.setValue(AZ0);
+  view.el_slide.setValue(EL0);
+  view.bank_slide.setValue(0);
+  board.update();
+
+  /* ================= 向量工具 ================= */
+  function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+  function add(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
+  function scl(a, s) { return [a[0] * s, a[1] * s, a[2] * s]; }
+  function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function cross(a, b) {
+    return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  }
+  function len(a) { return Math.sqrt(dot(a, a)); }
+  function norm(a) { var l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }
+
+  /* ================= 折叠几何（树遍历） ================= */
+  var GC = {};    // 每个面的当前 4 角坐标
+  var GF = {};    // 拖拽用：铰链中点 / 轴 / 展平外向 / 父法向 / 高
+  var NF = {};    // 每个面的当前法向
+
+  function recompute() {
+    var net = NETS[S.net], a = S.a, b = S.b;
+    GC.b = [[-a / 2, 0, 0], [a / 2, 0, 0], [a / 2, b, 0], [-a / 2, b, 0]];
+    NF.b = [0, 0, 1];
+    GF.b = null;
+    for (var i = 1; i < net.order.length; i++) {
+      var f = net.order[i], p = net.parent[f], d = net.dir[f];
+      var pc = GC[p], h1, h2, wf;
+      if (d === 'S') { h1 = pc[0]; h2 = pc[1]; wf = norm(sub(pc[0], pc[3])); }
+      else if (d === 'E') { h1 = pc[1]; h2 = pc[2]; wf = norm(sub(pc[1], pc[0])); }
+      else if (d === 'N') { h1 = pc[3]; h2 = pc[2]; wf = norm(sub(pc[3], pc[0])); }
+      else { h1 = pc[0]; h2 = pc[3]; wf = norm(sub(pc[0], pc[1])); }
+      var uu = norm(sub(h2, h1)), np = NF[p];
+      var L = len(sub(h2, h1));
+      // 面尺寸：铰链长为共享棱，另一维为面高
+      var dims = faceDims(f);
+      var hh = (Math.abs(L - dims[0]) < Math.abs(L - dims[1])) ? dims[1] : dims[0];
+      var th = S.ang[f];
+      // 折叠：外向向量从“摊平方向”(wf) 朝父面法向 (np) 扫过 θ 角 ——
+      // 直接基向量组合，对任何铰链朝向都保证向同一侧（纸面上方）卷折
+      var w = add(scl(wf, Math.cos(th)), scl(np, Math.sin(th)));
+      GF[f] = { mid: scl(add(h1, h2), 0.5), u: uu, wf: wf, np: np, h: hh };
+      GC[f] = [h1, h2, add(h2, scl(w, hh)), add(h1, scl(w, hh))];
+      NF[f] = add(scl(np, Math.cos(th)), scl(wf, -Math.sin(th)));
+    }
+  }
+  function faceDims(f) {
+    var a = S.a, b = S.b, c = S.c;
+    if (f === 'b' || f === 't') { return [a, b]; }
+    if (f === 'f' || f === 'k') { return [a, c]; }
+    return [b, c];
+  }
+
+  /* ================= 画布元素（一次性创建，切换时仅更新标签） =================
+     不删除、不重建任何元素 —— JSXGraph 的深度排序（moveBefore）在删除重建后
+     会遇到失效的节点层级而抛错，因此切换展开方式时只改角点标签文本。 */
+  var boxEl = $('jxgbox');
+  var cal = null;
+  var P = {};          // 面角点元素 P[face][0..3]
+  var polyEls = [];    // 6 个面
+  var labeledPts = [];
+  var anchorEls = [];  // 标定锚点（下面三角）
+
+  function createElements() {
+    recompute();
+    FACES6.forEach(function (f) {
+      P[f] = [];
+      for (var k = 0; k < 4; k++) {
+        var pt = view.create('point3d', [
+          (function (ff, kk) {
+            return function () { return GC[ff][kk]; };
+          })(f, k)
+        ], {
+          name: NETS[S.net].labels[f][k], withLabel: $('chkLabels').checked,
+          visible: true, size: 1.6,
+          fillColor: '#26313c', strokeColor: '#26313c', highlight: false,
+          label: { color: '#3a4754', fontSize: 11, offset: [6, 6] }
+        });
+        P[f].push(pt);
+        labeledPts.push(pt);
+      }
+    });
+    anchorEls = [P.b[0], P.b[1], P.b[2]];
+    ['k', 'l', 'b', 'r', 't', 'f'].forEach(function (f) {
+      polyEls.push(view.create('polygon3d', P[f], {
+        fillColor: FACE_META[f].fill, fillOpacity: 0.55, highlight: false,
+        borders: { strokeColor: FACE_META[f].line, strokeWidth: 1.6, highlight: false }
+      }));
+    });
+  }
+
+  function applyNet() {   // 切换展开方式：仅更新角点标签文本
+    var net = NETS[S.net];
+    FACES6.forEach(function (f) {
+      for (var k = 0; k < 4; k++) {
+        var lb = net.labels[f][k];
+        P[f][k].setAttribute({ name: lb });
+        if (P[f][k].label && P[f][k].label.setText) { P[f][k].label.setText(lb); }
+      }
+    });
+  }
+
+  /* ================= 屏幕投影标定 ================= */
+  function calibrate() {
+    try {
+      var pa = anchorEls[0].element2D.coords.usrCoords,
+          pb = anchorEls[1].element2D.coords.usrCoords,
+          pc = anchorEls[2].element2D.coords.usrCoords;
+      var ax = pa[1], ay = pa[2], bx = pb[1], by = pb[2], cx = pc[1], cy = pc[2];
+      var Xx = (bx - ax) / S.a, Xy = (by - ay) / S.a;
+      var Yx = (cx - ax) / S.b - Xx * S.a / S.b;
+      var Yy = (cy - ay) / S.b - Xy * S.a / S.b;
+      var Ox = ax + Xx * S.a / 2, Oy = ay + Xy * S.a / 2;
+      var Pp = Xx * Xx + Yx * Yx - Xy * Xy - Yy * Yy;
+      var Q = Xx * Xy + Yx * Yy;
+      var s2 = -2 * Q + Math.sqrt(4 * Q * Q + Pp * Pp);
+      if (!(s2 > 1e-12)) { return false; }
+      var sg = Math.sqrt(s2), d = -Pp / sg;
+      var zx = (sg + d) / 2, zy = (sg - d) / 2;
+      if (zy < 0) { zx = -zx; zy = -zy; }
+      if (!isFinite(zx) || !isFinite(zy)) { return false; }
+      cal = { Ox: Ox, Oy: Oy, Xx: Xx, Xy: Xy, Yx: Yx, Yy: Yy, Zx: zx, Zy: zy };
+      return true;
+    } catch (e) { return false; }
+  }
+  function myProj(p) {
+    return [cal.Ox + p[0] * cal.Xx + p[1] * cal.Yx + p[2] * cal.Zx,
+            cal.Oy + p[0] * cal.Xy + p[1] * cal.Yy + p[2] * cal.Zy];
+  }
+  function viewDir() {
+    return [cal.Yx * cal.Zy - cal.Zx * cal.Yy,
+            cal.Zx * cal.Xy - cal.Xx * cal.Zy,
+            cal.Xx * cal.Yy - cal.Yx * cal.Xy];
+  }
+
+  /* ================= 自动取景 ================= */
+  function fitBoard() {
+    if (board.canvasWidth < 80 || board.canvasHeight < 80) { return; }
+    if (!calibrate()) { return; }
+    var k, q, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    FACES6.forEach(function (f) {
+      for (var i = 0; i < 4; i++) {
+        q = myProj(GC[f][i]);
+        x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]);
+        y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]);
+      }
+    });
+    var CW = board.canvasWidth, CH = board.canvasHeight;
+    var ccx = (x0 + x1) / 2, ccy = (y0 + y1) / 2;
+    var rx = (x1 - x0) / 2, ry = (y1 - y0) / 2;
+    if (!(rx >= 0 && ry >= 0) || (rx === 0 && ry === 0)) { return; }
+    var asp = CW / CH;
+    var HX = Math.max(rx * 1.3, ry * 1.3 * asp) * 1.1;
+    var HY = HX / asp;
+    board.setBoundingBox([ccx - HX, ccy + HY, ccx + HX, ccy - HY], false);
+  }
+
+  /* ================= 拾取与拖拽 ================= */
+  function pointInPoly(x, y, poly) {
+    var inside = false, i, j;
+    for (i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      var xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  }
+
+  function hitFace(px, py) {
+    if (!cal && !calibrate()) { return null; }
+    var v3 = viewDir();
+    var dt = [0, S.b / 2, S.c], db = [0, S.b / 2, 0];
+    var dTop = dot(dt, v3), dBot = dot(db, v3);
+    var nearIsSmall = dTop < dBot;
+    var best = null, bestD = 0;
+    FACES6.forEach(function (f) {
+      var poly = [], d = 0, i;
+      for (i = 0; i < 4; i++) {
+        var w = GC[f][i];
+        poly.push(myProj(w));
+        d += dot(w, v3);
+      }
+      if (pointInPoly(px, py, poly)) {
+        d /= 4;
+        if (f === 'b') { return; }                  // 下面固定，不可拖
+        if (best === null || (nearIsSmall ? d < bestD : d > bestD)) {
+          best = f; bestD = d;
+        }
+      }
+    });
+    return best;
+  }
+
+  function facePoint(f, t) {   // 面外缘中点在角 t 处的位置（绕铰链的弧）
+    var g = GF[f];
+    var w = add(scl(g.wf, Math.cos(t)), scl(g.np, Math.sin(t)));
+    return add(g.mid, scl(w, g.h / 2));
+  }
+
+  function angleFromPointer(f, px, py) {
+    var N = 30, best = 0, bestD = 1e18, i, t, q, dx, dy, d;
+    for (i = 0; i <= N; i++) {
+      t = HALF * i / N;
+      q = myProj(facePoint(f, t));
+      dx = q[0] - px; dy = q[1] - py;
+      d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = t; }
+    }
+    return best;
+  }
+
+  /* ================= 指针交互（捕获阶段接管） ================= */
+  var faceDrag = null, camDrag = null, tweens = {};
+
+  function ptrUser(evt) {
+    var r = boxEl.getBoundingClientRect(), bb = board.getBoundingBox();
+    return [bb[0] + (evt.clientX - r.left) * (bb[2] - bb[0]) / board.canvasWidth,
+            bb[1] - (evt.clientY - r.top) * (bb[1] - bb[3]) / board.canvasHeight];
+  }
+
+  function onFaceMove(evt) {
+    if (!faceDrag) { return; }
+    var pp = ptrUser(evt);
+    S.ang[faceDrag] = angleFromPointer(faceDrag, pp[0], pp[1]);
+    refresh();
+  }
+
+  function endPointer() {
+    if (faceDrag) {
+      var f = faceDrag, cur = S.ang[f];
+      var near = (Math.abs(cur) <= Math.abs(cur - HALF)) ? 0 : HALF;
+      if (Math.abs(cur - near) < 0.18 && Math.abs(cur - near) > 1e-4) {
+        tweens[f] = { from: cur, to: near, t0: performance.now() };
+      }
+      faceDrag = null;
+      document.removeEventListener('pointermove', onFaceMove);
+      document.removeEventListener('pointerup', onFaceUp);
+      document.removeEventListener('pointercancel', onFaceUp);
+    }
+    if (camDrag) {
+      camDrag = null;
+      document.removeEventListener('pointermove', onCamMove);
+      document.removeEventListener('pointerup', onCamUp);
+      document.removeEventListener('pointercancel', onCamUp);
+    }
+  }
+  function onFaceUp() { endPointer(); }
+  function onFaceDown(f) {
+    setMode('pause');
+    delete tweens[f];
+    faceDrag = f;
+    document.addEventListener('pointermove', onFaceMove);
+    document.addEventListener('pointerup', onFaceUp);
+    document.addEventListener('pointercancel', onFaceUp);
+  }
+
+  function onCamMove(evt) {
+    if (!camDrag) { return; }
+    var az = camDrag.az - (evt.screenX - camDrag.x) * 0.0075;
+    var el = clamp(camDrag.el + (evt.screenY - camDrag.y) * 0.0075, 0.02, 1.52);
+    view.az_slide.setValue(az);
+    view.el_slide.setValue(el);
+    board.update();
+  }
+  function onCamUp() { endPointer(); }
+
+  boxEl.addEventListener('pointerdown', function (evt) {
+    if (evt.button === 2) {
+      evt.preventDefault();
+      evt.stopPropagation();
+      camDrag = { x: evt.screenX, y: evt.screenY,
+                  az: view.az_slide.Value(), el: view.el_slide.Value() };
+      document.addEventListener('pointermove', onCamMove);
+      document.addEventListener('pointerup', onCamUp);
+      document.addEventListener('pointercancel', onCamUp);
+      return;
+    }
+    if (evt.button !== 0) { return; }
+    if (!cal && !calibrate()) { return; }
+    var pp = ptrUser(evt);
+    var f = hitFace(pp[0], pp[1]);
+    if (f) {
+      evt.preventDefault();
+      evt.stopPropagation();
+      onFaceDown(f);
+      onFaceMove(evt);
+    }
+  }, true);
+
+  boxEl.addEventListener('contextmenu', function (evt) { evt.preventDefault(); });
+
+  /* ================= 控制面板 ================= */
+  var btnPlay = $('btnPlay'), chip = $('chip');
+  var rngA = $('rngA'), rngB = $('rngB'), rngC = $('rngC'), rngSpeed = $('rngSpeed');
+  var valA = $('valA'), valB = $('valB'), valC = $('valC'), valSpeed = $('valSpeed');
+  var outV = $('outV'), outS = $('outS');
+  var angEl = { f: $('angF'), k: $('angK'), l: $('angL'), r: $('angR'), t: $('angT') };
+
+  var ICON_PLAY  = '<svg viewBox="0 0 10 12" width="10" height="12" aria-hidden="true"><path d="M0 0L10 6L0 12Z" fill="currentColor"/></svg>';
+  var ICON_PAUSE = '<svg viewBox="0 0 10 12" width="10" height="12" aria-hidden="true"><rect x="0.2" y="0" width="3.4" height="12" fill="currentColor"/><rect x="6.4" y="0" width="3.4" height="12" fill="currentColor"/></svg>';
+
+  function setMode(m) {
+    mode = m;
+    btnPlay.innerHTML = (m === 'pause')
+      ? ICON_PLAY + '<span>自动演示</span>'
+      : ICON_PAUSE + '<span>暂停</span>';
+    btnPlay.setAttribute('aria-pressed', m !== 'pause' ? 'true' : 'false');
+  }
+
+  function fmt1(x) { return (Math.round(x * 10) / 10).toFixed(1); }
+
+  function updateData() {
+    outV.textContent = fmt1(S.a * S.b * S.c);
+    outS.textContent = fmt1(2 * (S.a * S.b + S.b * S.c + S.c * S.a));
+  }
+
+  function syncUI() {
+    var deg = function (r) { return Math.round(r * 180 / Math.PI) + '°'; };
+    MOVES.forEach(function (f) { angEl[f].textContent = deg(S.ang[f]); });
+    var eps = 0.02, closed = true, flat = true;
+    MOVES.forEach(function (f) {
+      if (S.ang[f] > HALF - eps) { flat = false; }
+      else if (S.ang[f] < eps) { closed = false; }
+      else { flat = false; closed = false; }
+    });
+    var label = '①②③④⑤⑥⑦⑧⑨⑩⑪'[S.net] + ' ' + NETS[S.net].type;
+    if (closed) { chip.textContent = label + ' · 长方体'; }
+    else if (flat) { chip.textContent = label + ' · 平面展开图'; }
+    else {
+      var p = 0;
+      MOVES.forEach(function (f) { p += S.ang[f] / HALF; });
+      chip.textContent = label + ' · ' + Math.round(p / 5 * 100) + '%';
+    }
+  }
+
+  function bindDim(input, val, key) {
+    input.addEventListener('input', function () {
+      S[key] = parseFloat(input.value);
+      val.textContent = fmt1(S[key]);
+      updateData();
+      refresh();
+    });
+  }
+  bindDim(rngA, valA, 'a');
+  bindDim(rngB, valB, 'b');
+  bindDim(rngC, valC, 'c');
+
+  rngSpeed.addEventListener('input', function () {
+    S.speed = parseFloat(rngSpeed.value);
+    valSpeed.textContent = S.speed.toFixed(2) + '×';
+  });
+
+  btnPlay.addEventListener('click', function () {
+    if (mode !== 'pause') { setMode('pause'); return; }
+    u = invEase(S.ang.f / HALF);
+    dwellUntil = 0;
+    if (S.ang.f > HALF - 0.02) { dir = -1; }
+    else if (S.ang.f < 0.02) { dir = 1; }
+    setMode('pingpong');
+  });
+
+  $('btnToNet').addEventListener('click', function () {
+    u = invEase(S.ang.f / HALF); dwellUntil = 0; setMode('toNet');
+  });
+  $('btnToBox').addEventListener('click', function () {
+    u = invEase(S.ang.f / HALF); dwellUntil = 0; setMode('toBox');
+  });
+
+  $('chkLabels').addEventListener('change', function (e) {
+    labeledPts.forEach(function (p) { p.setAttribute({ withLabel: e.target.checked }); });
+    board.update();
+  });
+
+  $('btnResetView').addEventListener('click', function () {
+    view.az_slide.setValue(AZ0);
+    view.el_slide.setValue(EL0);
+    view.bank_slide.setValue(0);
+    board.update();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.target !== document.body || e.repeat) { return; }
+    if (e.code === 'Space') { e.preventDefault(); btnPlay.click(); }
+  });
+
+  /* ================= 展开方式切换 ================= */
+  var netgrid = $('netgrid');
+  NETS.forEach(function (net, i) {
+    net.no = i + 1;
+    var btn = document.createElement('button');
+    btn.className = 'netbtn';
+    // 迷你形状缩略图
+    var pts = [], f;
+    for (f in net.cells) { pts.push(net.cells[f]); }
+    var mnx = 1e9, mny = 1e9, mxx = -1e9, mxy = -1e9;
+    pts.forEach(function (p) {
+      mnx = Math.min(mnx, p[0]); mny = Math.min(mny, p[1]);
+      mxx = Math.max(mxx, p[0]); mxy = Math.max(mxy, p[1]);
+    });
+    var w = mxx - mnx + 1, h = mxy - mny + 1, u8 = 7;
+    var svg = '<svg width="' + (w * u8) + '" height="' + (h * u8) +
+      '" viewBox="0 0 ' + (w * u8) + ' ' + (h * u8) + '">';
+    pts.forEach(function (p) {
+      svg += '<rect x="' + ((p[0] - mnx) * u8 + 0.5) + '" y="' + ((p[1] - mny) * u8 + 0.5) +
+        '" width="' + (u8 - 1) + '" height="' + (u8 - 1) +
+        '" fill="#b9c2cc" stroke="#77828c" stroke-width="0.6"/>';
+    });
+    svg += '</svg>';
+    btn.innerHTML = '<b>' + '①②③④⑤⑥⑦⑧⑨⑩⑪'[i] + '</b>' + svg;
+    btn.addEventListener('click', function () { setNet(i); });
+    netgrid.appendChild(btn);
+    net.btn = btn;
+  });
+  function markNet() {
+    NETS.forEach(function (net) {
+      net.btn.classList.toggle('on', NETS[S.net] === net);
+    });
+  }
+  function setNet(i) {
+    S.net = i;
+    MOVES.forEach(function (f) { S.ang[f] = HALF; });
+    tweens = {};
+    if (faceDrag) {
+      faceDrag = null;
+      document.removeEventListener('pointermove', onFaceMove);
+      document.removeEventListener('pointerup', onFaceUp);
+      document.removeEventListener('pointercancel', onFaceUp);
+    }
+    applyNet();
+    markNet();
+    u = 1; dir = -1; dwellUntil = 0;
+    setMode('toNet');               // 切换后自动展开一次，展示该连接方式
+    refresh();
+  }
+
+  /* ================= 动画主循环 ================= */
+  function frame(now) {
+    if (!last) { last = now; }
+    var dt = Math.min(64, now - last);
+    last = now;
+    var need = false, k, tw, p;
+
+    for (k in tweens) {
+      if (tweens.hasOwnProperty(k)) {
+        tw = tweens[k];
+        p = Math.min(1, (now - tw.t0) / 160);
+        S.ang[k] = tw.from + (tw.to - tw.from) * ease(p);
+        if (p >= 1) { delete tweens[k]; }
+        need = true;
+      }
+    }
+
+    if (mode !== 'pause' && now >= dwellUntil && !faceDrag) {
+      var rate = dt / (SWEEP / S.speed);
+      if (mode === 'pingpong') {
+        u += dir * rate;
+        if (u >= 1) { u = 1; dir = -1; dwellUntil = now + DWELL; }
+        else if (u <= 0) { u = 0; dir = 1; dwellUntil = now + DWELL; }
+      } else {
+        u += (mode === 'toNet' ? -1 : 1) * rate;
+        if (u <= 0) { u = 0; dir = 1; setMode('pause'); }
+        else if (u >= 1) { u = 1; dir = -1; setMode('pause'); }
+      }
+      var t = ease(u);
+      MOVES.forEach(function (f) { S.ang[f] = t * HALF; });
+      need = true;
+    }
+
+    if (need) { refresh(); }
+    requestAnimationFrame(frame);
+  }
+
+  function refresh() {
+    recompute();
+    board.update();
+    fitBoard();
+    syncUI();
+  }
+
+  /* ================= 视图自适应 ================= */
+  function fit() {
+    var st = $('stage');
+    var w = st.clientWidth - 30, h = st.clientHeight - 30;
+    if (w > 80 && h > 80 && board.resizeContainer) {
+      board.resizeContainer(w, h);
+    }
+  }
+  if (window.ResizeObserver) {
+    new ResizeObserver(fit).observe($('stage'));
+  }
+  window.addEventListener('resize', fit);
+
+  /* ================= 启动 ================= */
+  updateData();
+  valA.textContent = fmt1(S.a);
+  valB.textContent = fmt1(S.b);
+  valC.textContent = fmt1(S.c);
+  var mn = location.hash.match(/n=([0-9]+)/);   // #n=1~11 直达某种连接方式
+  if (mn) {
+    S.net = clamp(parseInt(mn[1], 10) - 1, 0, NETS.length - 1);
+  }
+  markNet();
+  createElements();
+  applyNet();
+  var mh = location.hash.match(/t=([0-9.]+)/);  // #t=0~100 直达折叠进度
+  if (mh) {
+    var t0 = Math.min(100, Math.max(0, parseFloat(mh[1]))) / 100;
+    MOVES.forEach(function (f) { S.ang[f] = t0 * HALF; });
+    u = invEase(t0);
+    dir = t0 > 0.5 ? -1 : 1;
+  }
+  fit();
+  recompute();
+  board.update();
+  fitBoard();
+  var prm = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setMode(prm ? 'pause' : 'pingpong');
+  syncUI();
+  [200, 800].forEach(function (t) {
+    setTimeout(function () { fit(); refresh(); }, t);
+  });
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
