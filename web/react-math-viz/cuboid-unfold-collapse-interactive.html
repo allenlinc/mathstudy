@@ -1,0 +1,1099 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>长方体 · 收缩与展开 — react-math-viz 交互 demo</title>
+<style>
+  :root{
+    --bg:#141417;
+    --panel:rgba(21,21,26,.86);
+    --line:#2b2b33;
+    --ink:#e9e9ee;
+    --ink-dim:#9a9aa6;
+    --accent:#38bdf8;          /* React 版天蓝 */
+    --c-a:#f0ac5f;             /* 长 */
+    --c-b:#5cd0b3;             /* 宽 */
+    --c-h:#fc6255;             /* 高 */
+    --serif:Georgia,"Times New Roman","Songti SC","SimSun",serif;
+    --sans:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --mono:"Cascadia Mono",Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden}
+
+  /* ── 3D 舞台 ─────────────────────────────── */
+  #stage{position:fixed;inset:0;user-select:none;touch-action:none}
+  #stage canvas{display:block}
+
+  /* ── 顶部标题 ────────────────────────────── */
+  #masthead{position:fixed;top:26px;left:30px;pointer-events:none;user-select:none;z-index:5}
+  #masthead h1{font-family:var(--serif);font-weight:500;font-size:23px;letter-spacing:.04em;color:var(--ink)}
+  #masthead .sub{margin-top:7px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-dim)}
+  #masthead .hint{margin-top:4px;font-size:12px;color:var(--ink-dim)}
+  #masthead .hint b{color:var(--ink);font-weight:600}
+
+  /* ── 右上读数 HUD ─────────────────────────── */
+  #hud{position:fixed;top:26px;right:30px;text-align:right;pointer-events:none;user-select:none;z-index:5}
+  #hud .f{font-family:var(--serif);font-size:16px;color:var(--ink-dim);line-height:1.7}
+  #hud .f i{font-style:italic;color:var(--ink)}
+  #hud .f b{font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums;margin-left:2px}
+  #hud .chip{display:inline-block;margin-top:8px;padding:3px 10px;border:1px solid var(--line);
+             font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--ink-dim)}
+
+  /* ── 底部控制面板 ─────────────────────────── */
+  #panel{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:10;
+         width:min(94vw,700px);background:var(--panel);border:1px solid var(--line);
+         border-radius:4px;backdrop-filter:blur(10px);padding:13px 18px 15px}
+  .tabs{display:flex;gap:6px;margin-bottom:11px;border-bottom:1px solid var(--line);padding-bottom:10px}
+  .tab{appearance:none;background:transparent;border:1px solid transparent;color:var(--ink-dim);
+       font-family:var(--sans);font-size:13px;padding:5px 12px;cursor:pointer;border-radius:3px}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--accent);border-color:var(--line);background:rgba(56,189,248,.08)}
+
+  .sliders{display:flex;gap:16px;flex-wrap:wrap}
+  .sl{display:flex;flex-direction:column;gap:5px;flex:1 1 160px;min-width:150px}
+  .sl.off{opacity:.35;pointer-events:none}
+  .sl .row{display:flex;justify-content:space-between;align-items:baseline}
+  .sl .chip{font-size:12px;color:var(--c);letter-spacing:.03em}
+  .sl input[type=range]{width:100%;accent-color:var(--c);height:18px;cursor:pointer;background:transparent}
+  .sl output{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--c);
+             font-variant-numeric:tabular-nums}
+
+  .btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+  .btns button{appearance:none;background:transparent;border:1px solid var(--line);color:var(--ink);
+       font-family:var(--sans);font-size:13px;letter-spacing:.05em;padding:7px 18px;cursor:pointer;
+       border-radius:3px;transition:border-color .15s,color .15s,background .15s}
+  .btns button:hover{border-color:var(--accent);color:var(--accent)}
+  .btns button[aria-pressed="true"],
+  .btns button[aria-pressed="true"]:hover{border-color:var(--accent);color:#0e1418;background:var(--accent);font-weight:600}
+  .cnt{margin-left:auto;font-size:13px;color:var(--ink-dim)}
+  .cnt b{color:var(--accent);font-family:var(--serif);font-size:15px}
+
+  /* ── 手动展开实验室 ───────────────────────── */
+  .labhint{font-size:12.5px;color:var(--ink-dim);line-height:1.9;margin-bottom:2px}
+  .labhint b{color:var(--accent);font-weight:600}
+  #gallery{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}
+  #gallery .slot{position:relative;border:1px solid var(--line);border-radius:3px;background:rgba(255,255,255,.02);overflow:hidden}
+  #gallery .slot.found{border-color:var(--accent);background:rgba(56,189,248,.06)}
+  #gallery .tag{position:absolute;left:0;right:0;bottom:0;text-align:center;font-family:var(--mono);
+                font-size:9px;color:var(--ink-dim);letter-spacing:.04em;pointer-events:none;padding-bottom:1px}
+  #gallery .slot.found .tag{color:var(--accent)}
+
+  .toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);padding:9px 24px;z-index:25;
+         border:1px solid var(--accent);background:rgba(18,28,34,.94);color:var(--accent);
+         font-size:14px;letter-spacing:.06em;border-radius:4px;pointer-events:none}
+
+  /* ── 加载 / 失败 ──────────────────────────── */
+  #loader{position:fixed;inset:0;display:flex;flex-direction:column;gap:14px;align-items:center;
+          justify-content:center;background:var(--bg);z-index:30;transition:opacity .5s}
+  #loader.done{opacity:0;pointer-events:none}
+  #loader .ring{width:26px;height:26px;border:2px solid var(--line);border-top-color:var(--accent);
+                border-radius:50%;animation:spin 1s linear infinite}
+  #loader p{font-family:var(--mono);font-size:12px;color:var(--ink-dim);letter-spacing:.08em}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #fatal{position:fixed;inset:0;display:none;flex-direction:column;gap:14px;align-items:center;
+         justify-content:center;background:var(--bg);z-index:40;text-align:center;padding:30px}
+  #fatal.show{display:flex}
+  #fatal h2{font-family:var(--serif);font-weight:500;font-size:19px}
+  #fatal p{font-size:13px;color:var(--ink-dim);max-width:460px;line-height:1.8}
+  #fatal button{appearance:none;background:transparent;border:1px solid var(--accent);color:var(--accent);
+                padding:8px 26px;cursor:pointer;font-size:13px;border-radius:3px}
+  @media (max-width:640px){
+    #masthead{top:16px;left:16px}#masthead h1{font-size:18px}
+    #hud{top:16px;right:16px}#hud .f{font-size:13px}
+    #panel{bottom:12px;padding:10px 12px 12px}
+  }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<div id="loader"><div class="ring"></div><p>正在加载 react-math-viz + React 18（需联网 · esm.sh CDN）…</p></div>
+<div id="fatal">
+  <h2>引擎加载失败</h2>
+  <p id="fatalMsg">react-math-viz 通过 CDN（esm.sh）加载，请确认网络可用后重试。</p>
+  <button onclick="location.reload()">重试</button>
+</div>
+
+<script type="module">
+/* ══════════════════════════════════════════════════════════════════
+   长方体 · 收缩与展开 —— 基于 react-math-viz 0.1.17（React 18 + Three.js）
+   参考同仓库 manim-web 版移植：
+   · 页签一「尺寸调节」：六面色块长方体 + a/b/h 标注，滑杆平滑追踪
+   · 页签二「手动展开 · 11 种」：六薄板 + 有向铰链树，按住面拖拽展开，
+     摊平后自动识别 11 种经典展开图（启动时枚举 384 棵生成树建立图鉴）
+   架构要点（与 react-math-viz 的实现方式对齐）：
+   · Plot3D 的相机是挂载期一次性参数（effect 依赖相机数值）→ 相机保持静止，
+     视角用「转台」：根 Group3D 的 rotation/scale 由本应用的 az/el/zoom 驱动
+     （Group3D 的 position/rotation/scale props 每次渲染都会落到 three 对象上）；
+   · 拾取与拖拽全部用解析数学：静止相机的指针射线，经根旋转四元数的逆
+     变换进「转台系」，再与铰链运动学的面平面求交 —— 与渲染严格一致；
+   · Group3D 的 rotation 是 three 默认 'XYZ' 欧拉角 → 自实现 四元数→XYZ 欧拉；
+   · 框架没有 Line3D：面描边用 4 根细长 Box3D 在面局部坐标系内拼框；
+   · 图鉴缩略图直接用框架的 Plot2D + Polygon2D（SVG）绘制。
+   坐标系：three 约定 Y 轴向上，x=长 a，z=宽 b，y=高 h，地面为 y=0 平面
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── CDN 引导（esm.sh 主源 + esm.run 备源）──────────────────────── */
+const fatal = (msg) => {
+  const el = document.getElementById('fatalMsg');
+  if (el) el.textContent = msg;
+  document.getElementById('fatal').classList.add('show');
+  document.getElementById('loader').classList.add('done');
+};
+async function importAny(urls, label) {
+  for (const u of urls) {
+    try { return await import(u); }
+    catch (e) { console.warn(`[cdn] ${label} 加载失败：${u}`, e); }
+  }
+  throw new Error(`${label}：所有 CDN 均加载失败`);
+}
+const withTimeout = (p, ms, label) => Promise.race([
+  p, new Promise((_, rej) => setTimeout(() => rej(new Error(label + ' 超时')), ms)),
+]);
+
+let React, RDC, htmDef, RMV;
+try {
+  [React, RDC, htmDef, RMV] = await withTimeout(Promise.all([
+    importAny(['https://esm.sh/react@18.3.1', 'https://esm.run/react@18.3.1'], 'react'),
+    importAny(['https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1', 'https://esm.run/react-dom@18.3.1/client'], 'react-dom'),
+    importAny(['https://esm.sh/htm@3.1.1', 'https://esm.run/htm@3.1.1'], 'htm'),
+    importAny([
+      'https://esm.sh/react-math-viz@0.1.17?deps=react@18.3.1,react-dom@18.3.1',
+      'https://esm.run/react-math-viz@0.1.17',
+    ], 'react-math-viz'),
+  ]), 25000, 'CDN 加载');
+} catch (e) {
+  fatal('react-math-viz 引擎加载失败：请确认网络可用后点击「重试」。');
+  throw e;
+}
+const { default: htm } = htmDef;
+const html = htm.bind(React.createElement);
+const {
+  Plot3D, Plot2D, Group3D, Box3D, Sphere3D, Label3D, Grid3D,
+  Polygon2D, useTween, easing,
+} = RMV;
+const {
+  useState, useEffect, useMemo, useRef, useReducer,
+} = React;
+
+/* 矩阵（行主序）→ 四元数（Shepperd 法）*/
+function matToQuat(m){
+  const tr = m[0][0]+m[1][1]+m[2][2];
+  let x,y,z,w;
+  if (tr > 0){ const s = Math.sqrt(tr+1)*2; w = s/4; x = (m[2][1]-m[1][2])/s; y = (m[0][2]-m[2][0])/s; z = (m[1][0]-m[0][1])/s; }
+  else if (m[0][0] > m[1][1] && m[0][0] > m[2][2]){ const s = Math.sqrt(1+m[0][0]-m[1][1]-m[2][2])*2; w = (m[2][1]-m[1][2])/s; x = s/4; y = (m[0][1]+m[1][0])/s; z = (m[0][2]+m[2][0])/s; }
+  else if (m[1][1] > m[2][2]){ const s = Math.sqrt(1+m[1][1]-m[0][0]-m[2][2])*2; w = (m[0][2]-m[2][0])/s; x = (m[0][1]+m[1][0])/s; y = s/4; z = (m[1][2]+m[2][1])/s; }
+  else { const s = Math.sqrt(1+m[2][2]-m[0][0]-m[1][1])*2; w = (m[1][0]-m[0][1])/s; x = (m[0][2]+m[2][0])/s; y = (m[1][2]+m[2][1])/s; z = s/4; }
+  return [x,y,z,w];
+}
+
+/* ── 向量 / 四元数（自包含，零外部依赖）───────────────────────── */
+const vadd=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+const vsub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const vscl=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
+const vdot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const vcross=(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const vlen=a=>Math.hypot(a[0],a[1],a[2]);
+const vnorm=a=>{const l=vlen(a)||1;return [a[0]/l,a[1]/l,a[2]/l];};
+const qAxis=(u,ang)=>{const s=Math.sin(ang/2);return [u[0]*s,u[1]*s,u[2]*s,Math.cos(ang/2)];};
+const qMul=(a,b)=>[
+  a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],
+  a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],
+  a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],
+  a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2]];
+const qConj=q=>[-q[0],-q[1],-q[2],q[3]];
+const qRot=(q,v)=>{           // v' = v + 2w(q×v) + 2 q×(q×v)
+  const t=vcross([q[0],q[1],q[2]],v);
+  const u2=vscl(t,2);
+  return vadd(vadd(v, vscl(u2,q[3])), vcross([q[0],q[1],q[2]], u2));
+};
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const HALF_PI=Math.PI/2;
+const DEG=Math.PI/180;
+
+/* 四元数 → three 默认 'XYZ' 欧拉角（R = Rx·Ry·Rz，与 Euler.setFromRotationMatrix 一致）*/
+function qToEulerXYZ(q){
+  const [x,y,z,w]=q;
+  const r00=1-2*(y*y+z*z), r01=2*(x*y-z*w), r02=2*(x*z+y*w);
+  const r12=2*(y*z-x*w),   r22=1-2*(x*x+y*y);
+  const r11=1-2*(x*x+z*z), r21=2*(y*z+x*w);
+  const sy=clamp(r02,-1,1);
+  const ey=Math.asin(sy);
+  let ex,ez;
+  if (Math.abs(r02)<0.9999999){ ex=Math.atan2(-r12,r22); ez=Math.atan2(-r01,r00); }
+  else { ex=Math.atan2(r21,r11); ez=0; }
+  return [ex,ey,ez];
+}
+
+/* ── 调色 ───────────────────────────────────────────────────────── */
+const COL = {
+  bg:'#16161a', edge:'#dfe7ee',
+  a:'#f0ac5f', b:'#5cd0b3', h:'#fc6255',
+};
+const FACE_COL   = { D:'#f0ac5f', T:'#fc6255', F:'#58c4dd', B:'#5cd0b3', R:'#c3a6ff', L:'#a8d76c' };
+const FACE_COL_HOVER = { D:'#f6c48c', T:'#fd8d82', F:'#8ad9ec', B:'#8ce2cc', R:'#d6c6ff', L:'#c2e79a' };
+const FACE_NAME  = { D:'下', T:'上', F:'前', B:'后', R:'右', L:'左' };
+
+/* ── 几何表（Y 轴向上：x=长 a，z=宽 b，y=高 h）─────────────────── */
+const FIDS = ['D','T','F','B','R','L'];
+const MOBILE = ['F','B','L','R','T'];
+const EPS = .04;                        // 薄板厚度
+const DEF = { a:4.2, b:2.6, h:1.8 };
+
+const faceCenters = ({a,b,h}) => ({
+  D:[0,0,0], T:[0,h,0], F:[0,h/2,b/2], B:[0,h/2,-b/2], R:[a/2,h/2,0], L:[-a/2,h/2,0] });
+const slabDims = ({a,b,h}) => ({
+  D:[a,EPS,b], T:[a,EPS,b], F:[a,h,EPS], B:[a,h,EPS], R:[EPS,h,b], L:[EPS,h,b] });
+const surfDef = ({a,b,h}) => ({     // 外表面矩形：局部两轴 + 半宽
+  D:{ax:[0,2],half:[a/2,b/2]}, T:{ax:[0,2],half:[a/2,b/2]},
+  F:{ax:[0,1],half:[a/2,h/2]}, B:{ax:[0,1],half:[a/2,h/2]},
+  R:{ax:[2,1],half:[b/2,h/2]}, L:{ax:[2,1],half:[b/2,h/2]} });
+const AXIS_OF = { D:1, T:1, F:2, B:2, R:0, L:0 };          // 厚度方向（局部轴）
+const OUTER_SIGN = { D:-1, T:1, F:1, B:-1, R:1, L:-1 };    // 外表面朝向
+
+/* 12 条邻接棱（闭合位形下的世界坐标）：[A, B, 棱中点 P, 棱轴 u] */
+function adjPairs(dims){
+  const {a,b,h}=dims;
+  return [
+    ['D','F',[0, 0, b/2],[1,0,0]], ['D','B',[0, 0,-b/2],[1,0,0]],
+    ['D','R',[ a/2,0,0],[0,0,1]],  ['D','L',[-a/2,0,0],[0,0,1]],
+    ['T','F',[0, h, b/2],[1,0,0]], ['T','B',[0, h,-b/2],[1,0,0]],
+    ['T','R',[ a/2,h,0],[0,0,1]],  ['T','L',[-a/2,h,0],[0,0,1]],
+    ['F','R',[ a/2,h/2, b/2],[0,1,0]], ['F','L',[-a/2,h/2, b/2],[0,1,0]],
+    ['B','R',[ a/2,h/2,-b/2],[0,1,0]], ['B','L',[-a/2,h/2,-b/2],[0,1,0]] ];
+}
+/* 有向铰链常量表 H[N][F]：tC=子面闭合中心−父面中心；P=棱中点(父局部)；u=棱轴；s=外翻符号
+   运动学：q_H = q(u, s·θ)；pH = P + R(q_H)(tC−P)；世界位姿 = 父位姿 ∘ (pH, q_H)  */
+const hCache = new Map();
+function Hof(dims){
+  const key = `${dims.a}|${dims.b}|${dims.h}`;
+  let H = hCache.get(key);
+  if (H) return H;
+  const c0 = faceCenters(dims); H = {};
+  for (const [A,B,P,u] of adjPairs(dims)){
+    for (const [N,F] of [[A,B],[B,A]]){       // 正反两个方向都登记
+      const tC = vsub(c0[F], c0[N]), Pl = vsub(P, c0[N]);
+      const cr = vcross(u, vsub(tC, Pl));
+      // 外翻判据：切向指向铰链棱的「背离父面体」一侧（即朝 Pl 方向）
+      const s = (vdot(cr, Pl) >= 0 ? 1 : -1);
+      (H[N] ||= {})[F] = { tC, P:Pl, u, s };
+    }
+  }
+  hCache.set(key, H);
+  return H;
+}
+function neighborsOf(dims){
+  const nb = {}; for (const [A,B] of adjPairs(dims)){ (nb[A] ||= []).push(B); (nb[B] ||= []).push(A); } return nb;
+}
+/* 纯函数：给定树 + 各面开合角 → 六面（转台系）位姿 */
+function computeLayout(parent, thetas, dims){
+  const H = Hof(dims), c0 = faceCenters(dims);
+  const pose = { D:{ p:c0.D.slice(), q:[0,0,0,1] } };
+  let todo = FIDS.filter(x=>x!=='D');
+  for (let g=0; g<6 && todo.length; g++){
+    todo = todo.filter(F=>{
+      const N = parent[F];
+      if (!pose[N]) return true;
+      const {tC,P,u,s} = H[N][F], th = thetas[F] || 0;
+      const qH = qAxis(u, s*th);
+      const pH = vadd(P, qRot(qH, vsub(tC,P)));
+      pose[F] = { p: vadd(pose[N].p, qRot(pose[N].q, pH)), q: qMul(pose[N].q, qH) };
+      return false;
+    });
+  }
+  return pose;
+}
+const DEF_TREE = { F:'D', B:'D', L:'D', R:'D', T:'F' };
+const ZERO5 = { F:0, B:0, L:0, R:0, T:0 };
+const ALL90 = { F:HALF_PI, B:HALF_PI, L:HALF_PI, R:HALF_PI, T:HALF_PI };
+
+/* ── 展开图图鉴：枚举 384 棵生成树 → 归纳全部图案 ───────────────── */
+const K20 = 20;   // 坐标 ×20 取整（尺寸步长 0.1 ⇒ 半单位坐标必为 0.05 的整数倍）
+function rectsOf(pose, dims){
+  const sd = surfDef(dims), out = {};
+  for (const id of FIDS){
+    const {p,q} = pose[id], {ax,half} = sd[id];
+    let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+    for (const si of [-1,1]) for (const sj of [-1,1]){
+      const l=[0,0,0]; l[ax[0]]=si*half[0]; l[ax[1]]=sj*half[1];
+      const w = vadd(p, qRot(q,l));
+      x0=Math.min(x0,w[0]); x1=Math.max(x1,w[0]);
+      y0=Math.min(y0,w[2]); y1=Math.max(y1,w[2]);      // 摊平面 = 地面 y=0，取 (x,z)
+    }
+    out[id] = { cx:Math.round((x0+x1)/2*K20), cy:Math.round((y0+y1)/2*K20),
+                hx:Math.round((x1-x0)/2*K20), hy:Math.round((y1-y0)/2*K20) };
+  }
+  return out;
+}
+const DIHEDRAL = [
+  r=>[r.cx, r.cy, r.hx, r.hy], r=>[-r.cy, r.cx, r.hy, r.hx], r=>[-r.cx,-r.cy, r.hx, r.hy], r=>[r.cy,-r.cx, r.hy, r.hx],
+  r=>[-r.cx, r.cy, r.hx, r.hy], r=>[r.cx,-r.cy, r.hx, r.hy],
+  r=>[-r.cy,-r.cx, r.hy, r.hx], r=>[r.cy, r.cx, r.hy, r.hx],
+];
+function shapeSig(rects){
+  let best = null;
+  for (const f of DIHEDRAL){
+    const arr = FIDS.map(id=>f(rects[id])).sort((p,q)=>p[0]-q[0]||p[1]-q[1]||p[2]-q[2]||p[3]-q[3]);
+    const s = arr.map(r=>r.join(',')).join(';');
+    if (best===null || s<best) best = s;
+  }
+  return best;
+}
+function contactsOfImpl(rects){
+  const ids = FIDS, out = [];
+  for (let i=0;i<ids.length;i++) for (let j=i+1;j<ids.length;j++){
+    const A=rects[ids[i]], B=rects[ids[j]];
+    const ox = Math.min(A.cx+A.hx, B.cx+B.hx) - Math.max(A.cx-A.hx, B.cx-B.hx);
+    const oy = Math.min(A.cy+A.hy, B.cy+B.hy) - Math.max(A.cy-A.hy, B.cy-B.hy);
+    const yGap = Math.abs(A.cy-B.cy) - (A.hy+B.hy);
+    const xGap = Math.abs(A.cx-B.cx) - (A.hx+B.hx);
+    if (ox>1 && Math.abs(yGap)<=1){       // 「y 向」贴（平面上下的邻接）
+      const top = A.cy>B.cy ? ids[i] : ids[j], bot = top===ids[i]?ids[j]:ids[i];
+      out.push({a:top, b:bot, da:3, db:1});          // 3=S 1=N
+    } else if (oy>1 && Math.abs(xGap)<=1){ // 「x 向」贴
+      const rgt = A.cx>B.cx ? ids[i] : ids[j], lft = rgt===ids[i]?ids[j]:ids[i];
+      out.push({a:rgt, b:lft, da:2, db:0});          // 2=W 0=E
+    }
+  }
+  return out;
+}
+/* 图案签名：无标签接触图（含方向），在 8 种平面等距 × 全部点重标下取规范最小形
+   —— 同一经典图案的不同尺寸安排会被合并 ⇒ 恰得 11 种 */
+const PERMS = (()=>{ const res=[],arr=FIDS.slice();
+  (function go(k){ if(k===arr.length){res.push(arr.slice());return;} for(let i=k;i<arr.length;i++){[arr[k],arr[i]]=[arr[i],arr[k]];go(k+1);[arr[k],arr[i]]=[arr[i],arr[k]];} })(0);
+  return res; })();
+function patternSig(rects, contacts){
+  let best = null;
+  for (const f of DIHEDRAL){
+    const tr = {}; FIDS.forEach(id=>{ const v=f(rects[id]); tr[id]={cx:v[0],cy:v[1],hx:v[2],hy:v[3]}; });
+    const cons = contactsOfImpl(tr);
+    for (const perm of PERMS){
+      const rank = {}; perm.forEach((id,k)=>rank[id]=k);
+      const parts = cons.map(c=>`${rank[c.a]}${c.da}-${rank[c.b]}${c.db}`).sort();
+      const s = parts.join('|');
+      if (best===null || s<best) best = s;
+    }
+  }
+  return best;
+}
+/* 经典命名：找最长的直条带（对棱相连的面链）*/
+function patternName(rects, contacts){
+  const nb = {}; FIDS.forEach(id=>nb[id]={});
+  for (const c of contacts){ nb[c.a][c.da]=c.b; nb[c.b][c.db]=c.a; }   // da/db 互为对侧
+  const opp = d => (d+2)%4;
+  const strips = [];
+  const seenStrip = new Set();
+  for (const start of FIDS) for (let d0=0; d0<4; d0++){
+    if (!nb[start][d0]) continue;
+    const path=[start]; const used=new Set([start]);
+    let cur=start, dir=d0;
+    while (true){ const nxt=nb[cur][dir]; if(!nxt||used.has(nxt)) break; path.push(nxt); used.add(nxt); cur=nxt; }
+    let bcur=start, bdir=opp(d0);
+    while (true){ const nxt=nb[bcur][bdir]; if(!nxt||used.has(nxt)) break; path.unshift(nxt); used.add(nxt); bcur=nxt; }
+    const key = path.slice().sort().join('');
+    if (!seenStrip.has(key)){ seenStrip.add(key); strips.push(path); }
+  }
+  strips.sort((x,y)=>y.length-x.length);
+  const L = strips[0]?.length || 0;
+  if (L>=4) return '1-4-1 型';
+  if (L===3){
+    if ((strips[1]?.length||0) >= 3){
+      const A = new Set(strips[0]);
+      let cross = 0;
+      for (const c of contacts) if (A.has(c.a)!==A.has(c.b)) cross++;
+      return cross >= 2 ? '3-3 型' : '2-3-1 型';
+    }
+    return '2-3-1 型';
+  }
+  return '2-2-2 型';
+}
+function enumeratePatterns(dims){
+  const H = Hof(dims);
+  const pairs = adjPairs(dims);
+  const shapes = new Map(), shapeToPattern = new Map(), patterns = [];
+  const idx = [...Array(pairs.length).keys()];
+  const combos = (n,k)=>{ const res=[],cur=[]; (function go(s){ if(cur.length===k){res.push(cur.slice());return;} for(let i=s;i<n;i++){cur.push(i);go(i+1);cur.pop();} })(0); return res; };
+  for (const combo of combos(pairs.length, 5)){
+    // 并查集判生成树
+    const fa = {}; FIDS.forEach(x=>fa[x]=x);
+    const find = x=>fa[x]===x?x:(fa[x]=find(fa[x]));
+    let ok = true;
+    for (const ei of combo){ const [A,B]=pairs[ei]; const ra=find(A),rb=find(B); if(ra===rb){ok=false;break;} fa[ra]=rb; }
+    if (!ok) continue;
+    const tEdges = combo.map(ei=>pairs[ei]);
+    const parentMap = {};                       // 从 D BFS 定根
+    const nb = {}; for (const [A,B] of tEdges){ (nb[A] ||= []).push(B); (nb[B] ||= []).push(A); }
+    const seen = new Set(['D']); const qq=['D'];
+    while(qq.length){ const x=qq.shift(); for(const y of nb[x]||[]) if(!seen.has(y)){ seen.add(y); parentMap[y]=x; qq.push(y); } }
+    if (seen.size<6) continue;
+    const pose = computeLayout(parentMap, ALL90, dims);
+    const rects = rectsOf(pose, dims);
+    const sk = shapeSig(rects);
+    if (shapes.has(sk)) continue;
+    shapes.set(sk,1);
+    const contacts = contactsOfImpl(rects);
+    const pk = patternSig(rects, contacts);
+    let pi = patterns.findIndex(p=>p.key===pk);
+    if (pi<0){ patterns.push({ key:pk, name:patternName(rects,contacts), rects }); pi = patterns.length-1; }
+    shapeToPattern.set(sk, patterns[pi].key);
+  }
+  patterns.sort((x,y)=>x.name.localeCompare(y.name,'zh')||x.key.localeCompare(y.key));
+  const shapeToIdx = new Map(); for (const [sk,pk] of shapeToPattern) shapeToIdx.set(sk, patterns.findIndex(p=>p.key===pk));
+  return { patterns, shapeToIdx };
+}
+
+/* ── 发现记录持久化：cookie 优先；file:// 下浏览器丢弃 cookie，自动回退 localStorage ── */
+const SAVE_KEY = 'cuboid_net11_reactmv';
+function saveDiscovered(set){
+  const payload = JSON.stringify([...set].sort((x,y)=>x-y));
+  let ok = false;
+  try {
+    document.cookie = SAVE_KEY+'='+encodeURIComponent(payload)+';path=/;max-age=31536000;SameSite=Lax';
+    ok = new RegExp('(?:^|;\\s*)'+SAVE_KEY+'=').test(document.cookie||'');
+  } catch(e){}
+  if (!ok){ try { localStorage.setItem(SAVE_KEY, payload); } catch(e){} }
+}
+function loadDiscovered(max){
+  let raw = null;
+  try {
+    const m = (document.cookie||'').match(new RegExp('(?:^|;\\s*)'+SAVE_KEY+'=([^;]*)'));
+    if (m) raw = decodeURIComponent(m[1]);
+  } catch(e){}
+  if (!raw){ try { raw = localStorage.getItem(SAVE_KEY); } catch(e){} }
+  if (!raw) return [];
+  try { return JSON.parse(raw).filter(i=>Number.isInteger(i) && i>=0 && i<max); } catch(e){ return []; }
+}
+function clearStored(){
+  try { document.cookie = SAVE_KEY+'=;path=/;max-age=0;SameSite=Lax'; } catch(e){}
+  try { localStorage.removeItem(SAVE_KEY); } catch(e){}
+}
+
+/* ══════════ 3D 子组件 ══════════ */
+
+/* 面描边：外表面矩形 4 根细长 Box3D（在面局部坐标系内拼框）*/
+function outlineSticks(id, dims){
+  const sd = surfDef(dims)[id], t = 0.055;
+  const n = AXIS_OF[id], sg = OUTER_SIGN[id];
+  const [axA, axB] = sd.ax, [hA, hB] = sd.half;
+  const mk = (alongAxis, alongLen, otherAxis, otherVal) => {
+    const size = [t,t,t], pos = [0,0,0];
+    size[alongAxis] = alongLen;
+    pos[otherAxis] = otherVal;
+    pos[n] = sg * (EPS/2 + t/2);          // 贴着外表面、向外凸出 t/2
+    return { size, pos };
+  };
+  return [
+    mk(axA, 2*hA + 2*t, axB,  hB), mk(axA, 2*hA + 2*t, axB, -hB),
+    mk(axB, 2*hB + 2*t, axA,  hA), mk(axB, 2*hB + 2*t, axA, -hA),
+  ];
+}
+
+/* 单个面：Group3D(位姿) + 薄板 Box3D + 描边 */
+function FaceNode({ id, pose, dims, hover }){
+  const slab = slabDims(dims)[id];
+  const sticks = useMemo(()=>outlineSticks(id, dims), [dims.a, dims.b, dims.h]);
+  const eul = useMemo(()=>qToEulerXYZ(pose.q), [pose.q[0], pose.q[1], pose.q[2], pose.q[3]]);
+  const color = hover ? FACE_COL_HOVER[id] : FACE_COL[id];
+  return html`<${Group3D} position=${pose.p} rotation=${eul}>
+    <${Box3D} size=${slab} position=${[0,0,0]} color=${color} />
+    ${sticks.map((st,i)=>html`<${Box3D} key=${i} size=${st.size} position=${st.pos} color=${COL.edge} />`)}
+  <//>`;
+}
+
+/* 轴向标注细杆（盒模式）：p0→p1 必为轴对齐 */
+function AxisStick({ p0, p1, color, t = 0.045 }){
+  const d = vsub(p1, p0);
+  const axis = Math.abs(d[0])>Math.abs(d[1]) ? (Math.abs(d[0])>Math.abs(d[2])?0:2) : (Math.abs(d[1])>Math.abs(d[2])?1:2);
+  const len = Math.abs(d[axis]) || 1e-6;
+  const size = [t,t,t]; size[axis] = len;
+  return html`<${Box3D} size=${size} position=${[(p0[0]+p1[0])/2,(p0[1]+p1[1])/2,(p0[2]+p1[2])/2]} color=${color} />`;
+}
+const EndDot = ({ p, color }) => html`<${Sphere3D} radius=${0.05} position=${p} color=${color} />`;
+
+/* ══════════ 2D 图鉴缩略图（Plot2D + Polygon2D，SVG）══════════ */
+function NetThumb({ p, found }){
+  const pad = 2.5;
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  for (const id of FIDS){
+    const r=p.rects[id];
+    x0=Math.min(x0,r.cx-r.hx); x1=Math.max(x1,r.cx+r.hx);
+    y0=Math.min(y0,r.cy-r.hy); y1=Math.max(y1,r.cy+r.hy);
+  }
+  const xr=[x0-pad, x1+pad], yr=[y0-pad, y1+pad];
+  return html`<div class=${'slot'+(found?' found':'')}>
+    <${Plot2D} width=${78} height=${56} xRange=${xr} yRange=${yr}
+       margin=${{top:3,right:3,bottom:3,left:3}}
+       pannable=${false} zoomable=${false} pinchZoomable=${false}>
+      ${FIDS.map(id=>{
+        const r=p.rects[id];
+        return html`<${Polygon2D} key=${id}
+          points=${[[r.cx-r.hx,r.cy-r.hy],[r.cx+r.hx,r.cy-r.hy],[r.cx+r.hx,r.cy+r.hy],[r.cx-r.hx,r.cy+r.hy]]}
+          stroke=${found?'#58c4dd':'#4b4b57'} strokeWidth=${1.1}
+          fill=${found?'rgba(88,196,221,.18)':'rgba(255,255,255,.02)'} clip=${false} />`;
+      })}
+    <//>
+    <div class="tag">${found ? p.name.replace(' 型','') : '?'}</div>
+  </div>`;
+}
+
+/* ══════════ 错误边界 ══════════ */
+class Boundary extends React.Component {
+  constructor(p){ super(p); this.state = { err:null }; }
+  static getDerivedStateFromError(err){ return { err }; }
+  componentDidCatch(err){ console.error('[boundary]', err); }
+  render(){
+    if (this.state.err){
+      return html`<div style=${{position:'fixed',inset:0,display:'flex',alignItems:'center',justifyContent:'center',color:'#fc6255',fontSize:14}}>渲染出错：${String(this.state.err.message||this.state.err)}</div>`;
+    }
+    return this.props.children;
+  }
+}
+
+/* ══════════ 主应用 ══════════ */
+const CAM_DIST = 17, CAM_FOV = 42;
+const VIEW0 = { az: 0.75, el: 0.5, zoom: 1 };
+
+function App(){
+  const [mode, setModeState] = useState('box');            // 'box' | 'lab'
+  const [dims, setDims] = useState({ ...DEF });            // 滑杆目标值
+  const dispRef = useRef({ ...DEF });                      // 平滑追踪的显示值
+  const [view, setView] = useState({ ...VIEW0 });          // 转台方位
+  const [vp, setVp] = useState({ w: Math.max(320, window.innerWidth), h: Math.max(280, window.innerHeight) });
+  const [hoverId, setHoverId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [spin, setSpin] = useState(false);
+  const [galleryV, setGalleryV] = useState(0);             // 图鉴版本（发现新图案时 +1）
+  const [, bump] = useReducer(x=>x+1, 0);
+
+  const stageRef = useRef(null);
+  const labRef = useRef(null);        // 实验室状态（六面树 + 角度 + 图鉴）
+  const dragRef = useRef(null);       // 面拖拽
+  const orbitRef = useRef(null);      // 视角拖拽
+  const modeRef = useRef(mode);       modeRef.current = mode;
+  const viewRef = useRef(view);       viewRef.current = view;
+  const vpRef = useRef(vp);           vpRef.current = vp;
+  const dimsRef = useRef(dims);       dimsRef.current = dims;
+  const spinRef = useRef(spin);       spinRef.current = spin;
+  const hoverRef = useRef(null);
+  const rootQRef = useRef([0,0,0,1]);
+  const scaleRef = useRef(1);
+  const toastTimer = useRef(null);
+
+  /* 开场绽放（框架的 useTween 驱动）*/
+  const intro = useTween({ duration: 1400, easing: 'easeOutQuad', autoplay: false });
+  useEffect(() => { const id = setTimeout(() => intro.play(), 350); return () => clearTimeout(id); }, []);
+
+  /* ── 转台旋转四元数 ──
+     标准轨道相机（方位角 az 绕世界 Y、仰角 el 绕相机右轴，up 恒为世界 +Y）
+     等价于静止相机 + 世界旋转 R（由两套视图基互推的闭式解，matToQuat 的输入为行主序）：
+     R = [[ce·ca,  se, ce·sa], [−se·ca, ce, −se·sa], [−sa, 0, ca]] */
+  const rootQOf = (v) => {
+    const ca = Math.cos(v.az), sa = Math.sin(v.az), ce = Math.cos(v.el), se = Math.sin(v.el);
+    return matToQuat([[ce*ca, se, ce*sa], [-se*ca, ce, -se*sa], [-sa, 0, ca]]);
+  };
+
+  /* ── 指针射线（静止相机 → 转台系）────────────────────────── */
+  const orbitRay = (mx, my) => {
+    const { w, h } = vpRef.current;
+    const aspect = w/h, th = Math.tan(CAM_FOV/2*DEG);
+    const nx = (mx/w)*2-1, ny = -((my/h)*2-1);
+    const f=[-1,0,0], r=[0,0,-1], u2=[0,1,0];      // 相机 (17,0,0) 看向原点的正交基
+    const dirW = vnorm(vadd(vadd(f, vscl(r, nx*th*aspect)), vscl(u2, ny*th)));
+    const inv = qConj(rootQRef.current);
+    // world = R·(s·p) ⇒ 转台系射线：eye/s 与旋转后的方向
+    return { eye: vscl(qRot(inv, [CAM_DIST,0,0]), 1/scaleRef.current), dir: qRot(inv, dirW) };
+  };
+  const canvasXY = (e) => {
+    const cv = stageRef.current?.querySelector('canvas');
+    if (!cv) return [0,0];
+    const r = cv.getBoundingClientRect();
+    return [e.clientX-r.left, e.clientY-r.top];
+  };
+  const setCursor = (c) => { const cv = stageRef.current?.querySelector('canvas'); if (cv) cv.style.cursor = c; };
+
+  /* ── 拾取：射线 × 五个可动面的外表面矩形 ── */
+  const pickFaceAt = (mx, my) => {
+    const L = labRef.current;
+    if (!L || modeRef.current!=='lab') return null;
+    const { eye, dir } = orbitRay(mx, my);
+    const pose = computeLayout(L.parent, L.theta, L.dims);
+    const sd = surfDef(L.dims);
+    let best=null, bestT=1e9;
+    for (const id of FIDS){
+      if (id==='D') continue;                       // 底面是桌面锚，不抓
+      const {p,q} = pose[id];
+      const n=[0,0,0]; n[AXIS_OF[id]]=1; const nW=qRot(q,n);
+      const den=vdot(dir,nW); if (Math.abs(den)<1e-6) continue;
+      const t=vdot(vsub(p,eye),nW)/den; if (t<0.05 || t>bestT) continue;
+      const hit=vadd(eye,vscl(dir,t));
+      const e1=[0,0,0]; e1[sd[id].ax[0]]=1; const u1=qRot(q,e1);
+      const e2=[0,0,0]; e2[sd[id].ax[1]]=1; const u2=qRot(q,e2);
+      const lx=vdot(vsub(hit,p),u1), ly=vdot(vsub(hit,p),u2);
+      if (Math.abs(lx)<=sd[id].half[0]+.14 && Math.abs(ly)<=sd[id].half[1]+.14){ best=id; bestT=t; }
+    }
+    return best;
+  };
+
+  /* ── 换棱选择：候选棱按「θ=90° 落点方向 · 拖动方向」评分 ── */
+  const inSubtree = (L, root, node) => {
+    let y = node;
+    while (y){ if (y===root) return true; y = L.parent[y]; }
+    return false;
+  };
+  const selectHinge = (id, dx, dy) => {
+    const L = labRef.current;
+    const rootQ = rootQOf(viewRef.current);
+    const dragWo = qRot(qConj(rootQ), vnorm(vadd(vscl([0,0,-1], dx), vscl([0,1,0], -dy))));
+    const pose = computeLayout(L.parent, L.theta, L.dims);
+    const H = Hof(L.dims), cC = pose[id].p;
+    let bestN=null, bestScore=-1e9;
+    for (const N of neighborsOf(L.dims)[id] || []){
+      if (inSubtree(L, id, N)) continue;                          // 防圈：只查祖先链
+      const {tC,P,u,s} = H[N][id];
+      const {p:pN,q:qN} = pose[N];
+      const qH90 = qAxis(u, s*HALF_PI);                           // 该铰链下摊平时的落点中心
+      const land = vadd(pN, qRot(qN, vadd(P, qRot(qH90, vsub(tC,P)))));
+      const score = vdot(dragWo, vnorm(vsub(land, cC)));
+      if (score>bestScore){ bestScore=score; bestN=N; }
+    }
+    if (bestScore < 0.15) bestN = null;   // 拖动方向与任何落点都不一致 → 不开
+    return { bestN, bestScore };
+  };
+
+  /* ── 角度映射基：指针绕棱角度 1:1 映射开合角（绝对式，无死区）── */
+  const buildJac = (id, N) => {
+    const L = labRef.current;
+    const {tC,P,u,s} = Hof(L.dims)[N][id];
+    const pose = computeLayout(L.parent, L.theta, L.dims);
+    const {p:pN,q:qN} = pose[N];
+    const Hw = vadd(pN, qRot(qN, P));
+    const uw = vnorm(qRot(qN, u));
+    const cCur = pose[id].p;
+    let a1 = vsub(cCur, Hw); a1 = vsub(a1, vscl(uw, vdot(a1,uw))); a1 = vnorm(a1);
+    const a2 = vcross(uw, a1);
+    return { Hw, uw, a1, a2, sgn: s, th0: L.theta[id] };
+  };
+
+  /* ── 摊平判定 + 图案识别 ── */
+  const showToast = (msg) => {
+    setToast({ msg, key: Date.now() });
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(()=>setToast(null), 2800);
+  };
+  const checkFlat = () => {
+    const L = labRef.current;
+    if (!L || !L.patterns) return;
+    for (const id of MOBILE) if (L.theta[id] < HALF_PI-1e-4) return;
+    const pose = computeLayout(L.parent, L.theta, L.dims);
+    const sk = shapeSig(rectsOf(pose, L.dims));
+    const idx = L.shapeToIdx.get(sk);
+    if (idx===undefined){ console.warn('[lab] unknown shape', sk); return; }
+    if (!L.discovered.has(idx)){
+      L.discovered.add(idx);
+      saveDiscovered(L.discovered);
+      setGalleryV(v=>v+1);
+      showToast(`新发现！第 ${idx+1} 种展开图：${L.patterns[idx].name}（已收集 ${L.discovered.size}/${L.patterns.length}）`);
+    }
+  };
+  const checkFlatRef = useRef(checkFlat); checkFlatRef.current = checkFlat;
+
+  const snapFace = (id) => {
+    const L = labRef.current; if (!L) return;
+    const th = L.theta[id];
+    let target = null;
+    if (th < .15) target = 0;
+    else if (th > HALF_PI-.15) target = HALF_PI;
+    if (target===null){ if (th>=HALF_PI-1e-4) checkFlat(); return; }
+    L.tweens.push({ id, from:th, to:target, t0:performance.now(), dur:240 });
+  };
+  const openAll = () => {
+    const L = labRef.current; if (!L) return;
+    L.tweens = MOBILE.map(id=>({ id, from:L.theta[id], to:HALF_PI, t0:performance.now(), dur:520 }));
+  };
+  const foldAll = () => {
+    const L = labRef.current; if (!L) return;
+    L.tweens = MOBILE.filter(id=>L.theta[id]>1e-3)
+                     .map(id=>({ id, from:L.theta[id], to:0, t0:performance.now(), dur:450 }));
+  };
+
+  /* ── 实验室初始化（枚举图鉴）── */
+  const ensureLab = () => {
+    if (labRef.current) return labRef.current;
+    const dimsNow = { ...dimsRef.current };
+    const en = enumeratePatterns(dimsNow);
+    console.log(`[lab] 展开图图案数：${en.patterns.length}（应为 11）`, en.patterns.map(p=>p.name).join('、'));
+    const L = { dims: dimsNow, theta: { ...ZERO5 }, parent: { ...DEF_TREE },
+                patterns: en.patterns, shapeToIdx: en.shapeToIdx, discovered: new Set(), tweens: [] };
+    for (const i of loadDiscovered(en.patterns.length)) L.discovered.add(i);
+    labRef.current = L;
+    return L;
+  };
+  const setMode = (m) => {
+    if (m==='lab') ensureLab();
+    setModeState(m);
+    if (m==='lab') setGalleryV(v=>v+1);
+  };
+  const clearDiscovered = () => {
+    const L = labRef.current; if (!L) return;
+    L.discovered.clear();
+    clearStored();
+    setGalleryV(v=>v+1);
+    showToast('记录已清空，重新开始收集吧！');
+  };
+  const resetAll = () => {
+    setDims({ ...DEF });
+    setView({ ...VIEW0 });
+  };
+
+  /* ── 指针事件 ── */
+  const onPointerDown = (e) => {
+    const st = stageRef.current; if (!st) return;
+    try { st.setPointerCapture(e.pointerId); } catch(err){}
+    const [mx,my] = canvasXY(e);
+    if (modeRef.current==='lab' && e.button===0){
+      const id = pickFaceAt(mx,my);
+      if (id){
+        const L = labRef.current;
+        const isOpen = L.theta[id] > 1e-3;
+        dragRef.current = { id, locked:isOpen, sx:e.clientX, sy:e.clientY, moved:0,
+                            th0:L.theta[id], jac: isOpen ? buildJac(id, L.parent[id]) : null };
+        window.__dbg = { down:[mx,my], pick:id };
+        L.tweens = L.tweens.filter(t=>t.id!==id);
+        hoverRef.current = null; setHoverId(null);
+        setCursor('grabbing');
+        e.preventDefault();
+        return;
+      }
+    }
+    orbitRef.current = { sx:e.clientX, sy:e.clientY, az0:viewRef.current.az, el0:viewRef.current.el };
+    setCursor('grabbing');
+  };
+  const onPointerMove = (e) => {
+    const drag = dragRef.current;
+    if (drag){
+      const L = labRef.current;
+      drag.moved = Math.hypot(e.clientX-drag.sx, e.clientY-drag.sy);
+      if (!drag.locked && drag.moved>12){          // 按拖动方向选铰链棱
+        const sel = selectHinge(drag.id, e.clientX-drag.sx, e.clientY-drag.sy);
+        window.__dbg = Object.assign(window.__dbg||{}, { sel });
+        if (sel.bestN){
+          L.parent[drag.id]=sel.bestN; drag.locked=true;
+          drag.th0=L.theta[drag.id]; drag.jac=buildJac(drag.id, sel.bestN);
+        }
+      }
+      if (drag.locked && drag.jac){                // 指针射线 ∩ 旋转平面 → 开合角
+        const [mx,my] = canvasXY(e);
+        const { eye, dir } = orbitRay(mx,my);
+        const J = drag.jac;
+        const den = vdot(dir, J.uw);
+        if (Math.abs(den) > 0.05){
+          const t = vdot(vsub(J.Hw, eye), J.uw)/den;
+          if (t > 0){
+            const Q = vadd(eye, vscl(dir,t));
+            let d = vsub(Q, J.Hw);
+            d = vsub(d, vscl(J.uw, vdot(d, J.uw)));
+            const phi = Math.atan2(vdot(d,J.a2), vdot(d,J.a1));
+            let nt = clamp(drag.th0 + J.sgn*phi, 0, HALF_PI);
+            window.__dbg = Object.assign(window.__dbg||{}, { map: { den:+den.toFixed(3), t:+t.toFixed(2), phi:+phi.toFixed(3), sgn:J.sgn, nt:+nt.toFixed(3) } });
+            if (nt > HALF_PI-.06) nt = HALF_PI;    // 接近摊平 → 磁吸
+            if (nt < .06) nt = 0;                  // 接近闭合 → 磁吸
+            L.theta[drag.id] = nt;
+            bump();
+            if (nt===HALF_PI) checkFlat();
+          }
+        }
+      }
+      return;
+    }
+    const orb = orbitRef.current;
+    if (orb){
+      const dx = e.clientX-orb.sx, dy = e.clientY-orb.sy;
+      setView(v => ({ ...v, az: orb.az0 + dx*0.008, el: clamp(orb.el0 + dy*0.008, -1.4, 1.4) }));
+      return;
+    }
+    if (modeRef.current==='lab'){                  // 悬停高亮
+      const [mx,my] = canvasXY(e);
+      const id = pickFaceAt(mx,my);
+      if (id !== hoverRef.current){
+        hoverRef.current = id; setHoverId(id);
+        setCursor(id ? 'grab' : 'default');
+      }
+    }
+  };
+  const onPointerUp = () => {
+    if (dragRef.current){ snapFace(dragRef.current.id); dragRef.current = null; }
+    orbitRef.current = null;
+    setCursor('default');
+  };
+
+  /* ── 滚轮缩放（原生监听以 preventDefault）── */
+  useEffect(() => {
+    const el = stageRef.current; if (!el) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      setView(v => ({ ...v, zoom: clamp(v.zoom * Math.exp(-e.deltaY*0.0011), 0.45, 2.4) }));
+    };
+    el.addEventListener('wheel', onWheel, { passive:false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  /* ── 键盘：空格 全展开/合拢 · R 复位视角 ── */
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target!==document.body) return;
+      if (e.code==='Space' && modeRef.current==='lab'){
+        e.preventDefault();
+        const L = labRef.current;
+        const allOpen = MOBILE.every(id=>L.theta[id] > HALF_PI-1e-3);
+        allOpen ? foldAll() : openAll();
+      } else if (e.code==='KeyR'){
+        setView({ ...VIEW0 });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  /* ── 窗口缩放（防抖；Plot3D 尺寸是挂载参数，变更会重建场景）── */
+  useEffect(() => {
+    let timer = null;
+    const on = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const w = Math.max(320, window.innerWidth), h = Math.max(280, window.innerHeight);
+        setVp(prev => (Math.abs(prev.w-w)>60 || Math.abs(prev.h-h)>60) ? { w, h } : prev);
+      }, 400);
+    };
+    window.addEventListener('resize', on);
+    return () => { window.removeEventListener('resize', on); clearTimeout(timer); };
+  }, []);
+
+  /* ── 帧循环：尺寸追踪 / 自转 / 磁吸补间 ── */
+  useEffect(() => {
+    let raf, last = null;
+    const loop = (now) => {
+      let dirty = false;
+      const dt = last===null ? 0.016 : Math.min(.05, (now-last)/1000); last = now;
+      const d = dispRef.current, b = dimsRef.current;
+      if (Math.abs(d.a-b.a)+Math.abs(d.b-b.b)+Math.abs(d.h-b.h) > 1e-4){
+        const k = 1-Math.exp(-dt*14);
+        d.a += (b.a-d.a)*k; d.b += (b.b-d.b)*k; d.h += (b.h-d.h)*k;
+        if (Math.abs(d.a-b.a)+Math.abs(d.b-b.b)+Math.abs(d.h-b.h) < 1e-3){ d.a=b.a; d.b=b.b; d.h=b.h; }
+        dirty = true;
+      }
+      if (spinRef.current && !dragRef.current && !orbitRef.current){
+        setView(v => ({ ...v, az: v.az + dt*0.45 }));
+      }
+      const L = labRef.current;
+      if (L && L.tweens.length){
+        L.tweens = L.tweens.filter(tw=>{
+          const a = clamp((now-tw.t0)/tw.dur, 0, 1);
+          L.theta[tw.id] = tw.from + (tw.to-tw.from)*easing.easeOutQuad(a);
+          if (a>=1){ L.theta[tw.id]=tw.to; if (tw.to===HALF_PI) checkFlatRef.current(); return false; }
+          return true;
+        });
+        dirty = true;
+      }
+      if (dirty) bump();
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  /* ── 挂载完成 ── */
+  useEffect(() => {
+    document.getElementById('loader').classList.add('done');
+    window.__ready = true;
+  }, []);
+
+  /* ══ 渲染 ══ */
+  const L = mode==='lab' ? labRef.current : null;
+  const thetas   = L ? L.theta   : ZERO5;
+  const parentMap= L ? L.parent  : DEF_TREE;
+  const dimsNow  = L ? L.dims    : dispRef.current;
+  const rootQ = rootQOf(view);
+  rootQRef.current = rootQ;
+  const s = (0.06 + 0.94*intro.t) * view.zoom;
+  scaleRef.current = s;
+  const rootEuler = qToEulerXYZ(rootQ);
+  const pose = computeLayout(parentMap, thetas, dimsNow);
+  const viewOf = (p) => qRot(rootQ, vscl(p, s));   // 转台系 → 世界系（Label3D 用）
+  const hudD = dimsNow;
+  const labOn = mode==='lab';
+
+  /* 测试 / 调试钩子 */
+  window.__demo = {
+    mode: () => modeRef.current,
+    setMode,
+    theta: () => L ? { ...L.theta } : { ...ZERO5 },
+    parent: () => L ? { ...L.parent } : { ...DEF_TREE },
+    setFace: (id, deg) => { const lab = labRef.current; if (lab){ lab.theta[id]=deg*DEG; bump(); } },
+    openAll, foldAll,
+    info: () => ({ mode: modeRef.current, count: L?.patterns?.length ?? null,
+                   discovered: L ? [...L.discovered] : [], names: L?.patterns?.map(p=>p.name) ?? null,
+                   dims: { ...dimsRef.current }, labDims: L ? { ...L.dims } : null }),
+    screenPos: (id) => {
+      const pW = viewOf(pose[id].p);
+      const { w, h } = vpRef.current;
+      const v = vsub(pW, [CAM_DIST,0,0]);
+      const depth = Math.max(1e-4, vdot(v, [-1,0,0]));
+      const fpx = (h/2)/Math.tan(CAM_FOV/2*DEG);
+      return { x: w/2 + fpx*vdot(v,[0,0,-1])/depth, y: h/2 - fpx*vdot(v,[0,1,0])/depth, depth };
+    },
+    pickAt: (x,y) => pickFaceAt(x,y),
+    dragState: () => dragRef.current ? { id: dragRef.current.id, locked: dragRef.current.locked, moved: +dragRef.current.moved.toFixed(1) } : null,
+    project: (p) => {
+      const pW = viewOf(p);
+      const { w, h } = vpRef.current;
+      const v = vsub(pW, [CAM_DIST,0,0]);
+      const depth = Math.max(1e-4, vdot(v, [-1,0,0]));
+      const fpx = (h/2)/Math.tan(CAM_FOV/2*DEG);
+      return { x: w/2 + fpx*vdot(v,[0,0,-1])/depth, y: h/2 - fpx*vdot(v,[0,1,0])/depth, depth };
+    },
+    faceLabelPos: (id) => {
+      const {p,q} = pose[id];
+      const n=[0,0,0]; n[AXIS_OF[id]]=OUTER_SIGN[id];
+      return vadd(p, vscl(qRot(q,n), .62));
+    },
+    landScreen: (id, N) => {
+      const lab = labRef.current; if (!lab) return null;
+      const H = Hof(lab.dims)[N][id];
+      const poseC = computeLayout(lab.parent, lab.theta, lab.dims);
+      const {p:pN,q:qN} = poseC[N];
+      const land = vadd(pN, qRot(qN, vadd(H.P, qRot(qAxis(H.u, H.s*HALF_PI), vsub(H.tC,H.P)))));
+      const pW = viewOf(land);
+      const { w, h } = vpRef.current;
+      const v = vsub(pW, [CAM_DIST,0,0]);
+      const depth = Math.max(1e-4, vdot(v, [-1,0,0]));
+      const fpx = (h/2)/Math.tan(CAM_FOV/2*DEG);
+      return { x: w/2 + fpx*vdot(v,[0,0,-1])/depth, y: h/2 - fpx*vdot(v,[0,1,0])/depth };
+    },
+    selectHinge: (id,dx,dy) => selectHinge(id,dx,dy),
+    canvasSize: () => ({ ...vpRef.current }),
+    view: () => ({ ...viewRef.current }),
+    setView: (az,el,zoom) => setView({ az, el, zoom: zoom ?? 1 }),
+    flatKey: () => {
+      const lab = labRef.current;
+      if (!lab) return null;
+      for (const id of MOBILE) if (lab.theta[id] < HALF_PI-1e-4) return null;
+      return shapeSig(rectsOf(computeLayout(lab.parent, lab.theta, lab.dims), lab.dims));
+    },
+    storageKey: SAVE_KEY,
+  };
+
+  const off = labOn ? ' off' : '';
+  return html`
+    <div id="stage" ref=${stageRef}
+         onPointerDown=${onPointerDown} onPointerMove=${onPointerMove}
+         onPointerUp=${onPointerUp} onPointerCancel=${onPointerUp}
+         onContextMenu=${e=>e.preventDefault()}>
+      <${Plot3D} width=${vp.w} height=${vp.h} background=${COL.bg}
+          camera=${{ fov:CAM_FOV, near:0.1, far:400, position:[CAM_DIST,0,0], lookAt:[0,0,0] }}
+          orbitControls=${false}>
+        <${Group3D} rotation=${rootEuler} scale=${[s,s,s]}>
+          <${Group3D} position=${[0,-0.01,0]}>
+            <${Grid3D} size=${16} divisions=${16} color1=${0x4a4a58} color2=${0x2e2e38} />
+          <//>
+          ${FIDS.map(id=>html`<${FaceNode} key=${id} id=${id} pose=${pose[id]} dims=${dimsNow}
+              hover=${labOn && hoverId===id} />`)}
+          ${!labOn && html`<${React.Fragment}>
+            <${AxisStick} p0=${[-dimsNow.a/2, .02, dimsNow.b/2+.55]} p1=${[dimsNow.a/2, .02, dimsNow.b/2+.55]} color=${COL.a} />
+            <${AxisStick} p0=${[dimsNow.a/2+.55, .02, -dimsNow.b/2]} p1=${[dimsNow.a/2+.55, .02, dimsNow.b/2]} color=${COL.b} />
+            <${AxisStick} p0=${[dimsNow.a/2+.55, 0, dimsNow.b/2+.55]} p1=${[dimsNow.a/2+.55, dimsNow.h, dimsNow.b/2+.55]} color=${COL.h} />
+            <${EndDot} p=${[-dimsNow.a/2, .02, dimsNow.b/2+.55]} color=${COL.a} />
+            <${EndDot} p=${[ dimsNow.a/2, .02, dimsNow.b/2+.55]} color=${COL.a} />
+            <${EndDot} p=${[dimsNow.a/2+.55, .02, -dimsNow.b/2]} color=${COL.b} />
+            <${EndDot} p=${[dimsNow.a/2+.55, .02,  dimsNow.b/2]} color=${COL.b} />
+            <${EndDot} p=${[dimsNow.a/2+.55, 0, dimsNow.b/2+.55]} color=${COL.h} />
+            <${EndDot} p=${[dimsNow.a/2+.55, dimsNow.h, dimsNow.b/2+.55]} color=${COL.h} />
+          <//>`}
+        <//>
+        ${!labOn && html`<${React.Fragment}>
+          <${Label3D} position=${viewOf([0, .34, dimsNow.b/2+.93])} align="center" vAlign="middle"
+             style=${{color:COL.a,fontFamily:'Georgia,"Times New Roman",serif',fontStyle:'italic',fontSize:'14px',textShadow:'0 1px 3px rgba(0,0,0,.8)'}}>a = ${dimsNow.a.toFixed(2)}<//>
+          <${Label3D} position=${viewOf([dimsNow.a/2+.97, .34, 0])} align="center" vAlign="middle"
+             style=${{color:COL.b,fontFamily:'Georgia,"Times New Roman",serif',fontStyle:'italic',fontSize:'14px',textShadow:'0 1px 3px rgba(0,0,0,.8)'}}>b = ${dimsNow.b.toFixed(2)}<//>
+          <${Label3D} position=${viewOf([dimsNow.a/2+1.1, dimsNow.h*.62, dimsNow.b/2+1.05])} align="center" vAlign="middle"
+             style=${{color:COL.h,fontFamily:'Georgia,"Times New Roman",serif',fontStyle:'italic',fontSize:'14px',textShadow:'0 1px 3px rgba(0,0,0,.8)'}}>h = ${dimsNow.h.toFixed(2)}<//>
+        <//>`}
+        ${labOn && L && FIDS.map(id=>{
+          const {p,q} = pose[id];
+          const n=[0,0,0]; n[AXIS_OF[id]]=OUTER_SIGN[id];
+          const nW = qRot(rootQ, qRot(q,n));               // 外法向（世界系）
+          const pW = viewOf(p);
+          const toCam = vnorm(vsub([CAM_DIST,0,0], pW));
+          if (vdot(nW, toCam) < 0.12) return null;         // 背朝相机的面不渲染标签
+          const pO = vadd(p, vscl(qRot(q,n), .62));
+          return html`<${Label3D} key=${id} position=${viewOf(pO)} align="center" vAlign="middle"
+             style=${{color:FACE_COL[id],fontSize:'13px',fontWeight:600,textShadow:'0 1px 3px rgba(0,0,0,.85)',fontFamily:'"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif'}}>${FACE_NAME[id]}<//>`;
+        })}
+      <//>
+    </div>
+
+    <header id="masthead">
+      <h1>长方体 · 收缩与展开</h1>
+      <p class="sub">react-math-viz 0.1.17 · React 18 + Three.js 实时渲染</p>
+      <p class="hint"><b>左键</b> 按住面拖动 / 空白处旋转 · <b>右键</b> 旋转视角 · <b>滚轮</b> 缩放 · <b>空格</b> 全展开/合拢 · <b>R</b> 复位</p>
+    </header>
+
+    <div id="hud" aria-live="polite">
+      <div class="f"><i>V</i> = a·b·h =<b>${(hudD.a*hudD.b*hudD.h).toFixed(2)}</b></div>
+      <div class="f"><i>S</i> = 2(ab+bh+ah) =<b>${(2*(hudD.a*hudD.b + hudD.b*hudD.h + hudD.a*hudD.h)).toFixed(2)}</b></div>
+      <div class="chip">${labOn ? (L ? `已发现 ${L.discovered.size} / ${L.patterns.length} 种` : '准备中…') : '整体模型 · 拖动滑杆'}</div>
+    </div>
+
+    ${toast && html`<div class="toast" key=${toast.key}>${toast.msg}</div>`}
+
+    <nav id="panel">
+      <div class="tabs" role="tablist">
+        <button class=${'tab'+(!labOn?' active':'')} role="tab" aria-selected=${!labOn}
+          onClick=${()=>setMode('box')}>尺寸调节</button>
+        <button class=${'tab'+(labOn?' active':'')} role="tab" aria-selected=${labOn}
+          onClick=${()=>setMode('lab')}>手动展开 · 11 种</button>
+      </div>
+
+      ${!labOn && html`<div>
+        <div class="sliders">
+          <label class="sl" style=${{'--c':'var(--c-a)'}}><span class="row"><span class="chip">长 a</span><output>${dims.a.toFixed(1)}</output></span>
+            <input type="range" min="0.4" max="6" step="0.1" value=${dims.a}
+              onChange=${e=>setDims(d=>({...d, a:parseFloat(e.target.value)}))} /></label>
+          <label class="sl" style=${{'--c':'var(--c-b)'}}><span class="row"><span class="chip">宽 b</span><output>${dims.b.toFixed(1)}</output></span>
+            <input type="range" min="0.4" max="6" step="0.1" value=${dims.b}
+              onChange=${e=>setDims(d=>({...d, b:parseFloat(e.target.value)}))} /></label>
+          <label class="sl" style=${{'--c':'var(--c-h)'}}><span class="row"><span class="chip">高 h</span><output>${dims.h.toFixed(1)}</output></span>
+            <input type="range" min="0.4" max="6" step="0.1" value=${dims.h}
+              onChange=${e=>setDims(d=>({...d, h:parseFloat(e.target.value)}))} /></label>
+        </div>
+        <div class="btns">
+          <button onClick=${resetAll}>复位</button>
+          <button aria-pressed=${spin} onClick=${()=>setSpin(v=>!v)}>自转</button>
+        </div>
+      </div>`}
+
+      ${labOn && html`<div>
+        <p class="labhint">按住一个面，<b>向外拖动</b>——它就绕着棱翻开（拖回去可折上；想让面换一条棱翻，就朝那个方向拉）。
+        把六个面全部摊平，就得到一种展开图。长方体共有 <b>11 种</b>展开图，动手把它们全部找出来吧！</p>
+        <div class="btns">
+          <button onClick=${foldAll}>重置拼回</button>
+          <button onClick=${clearDiscovered}>清空记录</button>
+          <span class="cnt">已发现 <b>${L ? L.discovered.size : 0}</b> / ${L ? L.patterns.length : 11} 种</span>
+        </div>
+        ${L && html`<div id="gallery">
+          ${L.patterns.map((p,i)=>html`<${NetThumb} key=${p.key} p=${p} found=${L.discovered.has(i)} />`)}
+        </div>`}
+      </div>`}
+    </nav>
+  `;
+}
+
+/* ── 启动 ── */
+RDC.createRoot(document.getElementById('root')).render(html`<${Boundary}><${App} /><//>`);
+</script>
+</body>
+</html>

@@ -16,6 +16,7 @@
     --locusing: #d97706;
     --manim: #8b5cf6;
     --mathbox: #ef4444;
+    --reactmv: #087ea4;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -85,7 +86,7 @@
     <div class="hero-text">
       <span class="kicker">MATHSTUDY · WEB</span>
       <h1>长方体<span class="accent">展开与收缩</span> · 交互实验室</h1>
-      <p class="sub">六个面、十二条棱、11 种展开图——同一道小学数学题，用五种可视化框架做出的交互动画合集。按住彩色面向外拖，亲手把盒子摊开。</p>
+      <p class="sub">六个面、十二条棱、11 种展开图——同一道小学数学题，用六种可视化框架做出的交互动画合集。按住彩色面向外拖，亲手把盒子摊开。</p>
     </div>
     <div class="hero-art" aria-hidden="true">
       <svg width="320" height="150" viewBox="0 0 320 150" xmlns="http://www.w3.org/2000/svg">
@@ -157,6 +158,14 @@
       <h3>长方体的展开 · 11 种展开图</h3>
       <p>右键拖拽旋转、按面拖动展开/折回、空格全展开/合拢；支持深链参数 <code>?pattern=1..11&amp;open=1&amp;a=2&amp;b=1.4&amp;c=1</code>。</p>
       <span class="offline">依赖：<b class="yes">自包含（内联 MathBox + three.js），离线可用</b></span>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="web/react-math-viz/cuboid-unfold-collapse-interactive.html">
+      <span class="chip" style="background:var(--reactmv)">react-math-viz</span>
+      <h3>长方体 · 收缩与展开 · React 组件化</h3>
+      <p>React 18 + react-math-viz 重制 manim-web 版：Plot3D/Group3D 渲染 3D 场景，Plot2D 绘制 11 种展开图图鉴；按面拖拽、松手磁吸、转台视角。</p>
+      <span class="offline">依赖：<b class="net">需联网加载 CDN 库（esm.sh）</b></span>
       <div class="go">打开 →</div>
     </a>
 
